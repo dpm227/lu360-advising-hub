@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lu360-advising-hub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lu360
+      POSTGRES_PASSWORD: lu360_dev_password
+      POSTGRES_DB: lu360_advising_hub
+    ports:
+      - "5432:5432"
+    volumes:
+      - lu360_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lu360 -d lu360_advising_hub"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  lu360_postgres_data:
+
