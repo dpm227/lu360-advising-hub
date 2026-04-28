@@ -13,7 +13,11 @@ export type OptionalPrisma = {
 };
 
 type PrismaModule = {
-  PrismaClient: new () => OptionalPrisma;
+  PrismaClient: new (options: { adapter: unknown }) => OptionalPrisma;
+};
+
+type PrismaPgModule = {
+  PrismaPg: new (connectionString: string) => unknown;
 };
 
 const globalForPrisma = globalThis as typeof globalThis & {
@@ -29,10 +33,12 @@ export async function getPrisma() {
     const dynamicImport = new Function(
       "specifier",
       "return import(specifier)",
-    ) as (specifier: string) => Promise<PrismaModule>;
-    const { PrismaClient } = await dynamicImport("@prisma/client");
+    ) as <T>(specifier: string) => Promise<T>;
+    const { PrismaClient } = await dynamicImport<PrismaModule>("@prisma/client");
+    const { PrismaPg } = await dynamicImport<PrismaPgModule>("@prisma/adapter-pg");
+    const adapter = new PrismaPg(process.env.DATABASE_URL);
 
-    globalForPrisma.lu360Prisma ??= new PrismaClient();
+    globalForPrisma.lu360Prisma ??= new PrismaClient({ adapter });
     return globalForPrisma.lu360Prisma as OptionalPrisma;
   } catch {
     return null;

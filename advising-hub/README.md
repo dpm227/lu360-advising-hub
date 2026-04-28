@@ -37,6 +37,8 @@ The local database connection string is already listed in `.env.example`:
 DATABASE_URL="postgresql://lu360:lu360_dev_password@localhost:5432/lu360_advising_hub?schema=public"
 ```
 
+Prisma 7 reads this connection string from `prisma.config.ts`, not directly from `prisma/schema.prisma`. The app and seed script use Prisma's PostgreSQL driver adapter for direct local database connections.
+
 After copying `.env.example` to `.env`, initialize Prisma:
 
 ```bash

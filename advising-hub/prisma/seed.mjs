@@ -1,7 +1,10 @@
+import "dotenv/config";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { programs } from "../lib/program-data.ts";
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg(process.env.DATABASE_URL);
+const prisma = new PrismaClient({ adapter });
 
 async function getOrCreateOrganization() {
   return prisma.organization.upsert({
@@ -175,4 +178,3 @@ main()
     await prisma.$disconnect();
     process.exit(1);
   });
-
