@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { MarkdownMessage } from "@/components/MarkdownMessage";
 import { programs } from "@/lib/program-data";
 
 type Message = {
@@ -14,8 +15,9 @@ const starterMessages: Message[] = [
   {
     id: "welcome",
     role: "assistant",
-    content:
-      "Hi Maya. I can compare programs, check eligibility, and explain how deadlines, funding, credit, and class-year requirements affect your options.",
+    content: `## Hi, I'm the Lehigh360 AI assistant.
+
+Tell me a little about yourself: your class year, college, major, interests, goals, funding needs, and what kind of experience you want. I can help you find Lehigh360 high-impact programs that may fit.`,
   },
 ];
 
@@ -131,12 +133,12 @@ export default function ChatPage() {
           <div className="messages" aria-live="polite">
             {messages.map((message) => (
               <div className={`message ${message.role}`} key={message.id}>
-                <p>{message.content}</p>
+                <MarkdownMessage content={message.content} />
               </div>
             ))}
             {isSending ? (
               <div className="message assistant pending">
-                <p>Checking program requirements...</p>
+                <MarkdownMessage content="Checking program requirements..." />
               </div>
             ) : null}
           </div>

@@ -635,10 +635,54 @@ input {
   padding: 12px 14px;
 }
 
-.message p {
+.markdown-message {
+  display: grid;
+  gap: 8px;
+}
+
+.markdown-message h2,
+.markdown-message h3,
+.markdown-message h4,
+.markdown-message p,
+.markdown-message ul {
+  margin: 0;
+}
+
+.markdown-message h2,
+.markdown-message h3 {
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 22px;
+}
+
+.markdown-message h4 {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 21px;
+}
+
+.markdown-message p,
+.markdown-message li {
   margin: 0;
   font-size: 14px;
   line-height: 21px;
+}
+
+.markdown-message ul {
+  display: grid;
+  gap: 4px;
+  padding-left: 20px;
+}
+
+.markdown-message a {
+  color: var(--primary);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.message.user .markdown-message a {
+  color: white;
 }
 
 .message.assistant {
