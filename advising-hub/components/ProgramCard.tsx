@@ -9,8 +9,12 @@ export function ProgramCard({ program, compact = false }: ProgramCardProps) {
   return (
     <article className={`program-card ${compact ? "compact" : ""}`}>
       <div
-        className="program-image"
-        style={{ backgroundImage: `url("${program.imageUrl}")` }}
+        className={`program-image ${program.imageUrl ? "" : "no-image"}`}
+        style={
+          program.imageUrl
+            ? { backgroundImage: `url("${program.imageUrl}")` }
+            : undefined
+        }
       />
       <div className="program-content">
         <div>
@@ -44,4 +48,3 @@ export function ProgramCard({ program, compact = false }: ProgramCardProps) {
     </article>
   );
 }
-

@@ -1,33 +1,16 @@
 import { AppShell } from "@/components/AppShell";
+import { DiscoverCarousel } from "@/components/DiscoverCarousel";
 import { ProgramCard } from "@/components/ProgramCard";
 import { programs } from "@/lib/program-data";
 import { rankedPrograms } from "@/lib/recommendations";
 
 export default function Home() {
-  const featuredPrograms = programs.filter((program) => program.featured);
+  const featuredPrograms = programs.filter((program) => program.featured || program.imageUrl);
   const recommendations = rankedPrograms().slice(0, 3);
 
   return (
     <AppShell active="discover" title="Discover">
-      <section className="carousel-section" aria-label="Featured programs">
-        <div className="program-carousel">
-          {featuredPrograms.map((program, index) => (
-            <a
-              className={`hero-program ${index === 0 ? "selected" : ""}`}
-              href={program.sourceUrl}
-              key={program.id}
-              style={{ backgroundImage: `url("${program.imageUrl}")` }}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <span>{program.title}</span>
-            </a>
-          ))}
-        </div>
-        <a className="text-action" href="#all-programs">
-          Show all
-        </a>
-      </section>
+      <DiscoverCarousel programs={featuredPrograms} />
 
       <section className="content-section">
         <div className="section-heading">
@@ -66,4 +49,3 @@ export default function Home() {
     </AppShell>
   );
 }
-

@@ -18,59 +18,39 @@ function MaterialIcon({ type }: { type: (typeof navItems)[number]["icon"] }) {
 
 export function AppShell({ active, title, children }: AppShellProps) {
   return (
-    <main className="app-canvas">
-      <section className="browser-frame" aria-label="LU360 Advising Hub">
-        <div className="browser-bar" aria-hidden="true">
-          <div className="browser-controls">
-            <span />
-            <span />
-            <span />
-          </div>
-          <div className="address-bar">
-            <span className="lock-mark" />
-            <span>www.lu360-hub.com</span>
-          </div>
-          <div className="browser-avatar">M</div>
-          <span className="kebab" />
-        </div>
+    <main className="site-shell">
+      <nav className="site-navbar" aria-label="Primary navigation">
+        <Link className="site-brand" href="/">
+          <span className="brand-mark" aria-hidden="true">
+            LU
+          </span>
+          <span>
+            <strong>LU360</strong>
+            <small>Advising Hub</small>
+          </span>
+        </Link>
 
-        <div className="app-surface">
-          <div className="top-app-bar">
-            <button className="icon-button" type="button" aria-label="Back">
-              <span className="arrow-left" aria-hidden="true" />
-            </button>
-            <h1>{title}</h1>
-            <button className="icon-button" type="button" aria-label="More">
-              <span className="kebab dark" aria-hidden="true" />
-            </button>
-          </div>
-          {children}
+        <div className="nav-links">
+          {navItems.map((item) => (
+            <Link
+              className={`nav-link ${active === item.id ? "active" : ""}`}
+              href={item.href}
+              key={item.id}
+            >
+              <MaterialIcon type={item.icon} />
+              <span>{item.label}</span>
+            </Link>
+          ))}
         </div>
+      </nav>
 
-        <nav className="navigation-rail" aria-label="Primary navigation">
-          <button className="rail-menu" type="button" aria-label="Menu">
-            <span className="hamburger" aria-hidden="true" />
-          </button>
-          <Link className="rail-fab" href="/chat" aria-label="Ask advisor">
-            <span className="pencil" aria-hidden="true" />
-          </Link>
-          <div className="rail-links">
-            {navItems.map((item) => (
-              <Link
-                className={`rail-link ${active === item.id ? "active" : ""}`}
-                href={item.href}
-                key={item.id}
-              >
-                <span className="rail-icon">
-                  <MaterialIcon type={item.icon} />
-                </span>
-                <span>{item.label}</span>
-              </Link>
-            ))}
-          </div>
-        </nav>
+      <section className="app-surface" aria-label={title}>
+        <header className="page-header">
+          <p className="eyebrow">LU360 Advising Hub</p>
+          <h1>{title}</h1>
+        </header>
+        {children}
       </section>
     </main>
   );
 }
-
