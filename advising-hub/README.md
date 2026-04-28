@@ -58,6 +58,31 @@ npm run db:docker:down
 
 The schema is intentionally lean. It models the program requirement fields needed now, including deadline, period, eligible class years, colleges, credit, work study, financial aid, GPA requirement, funding type, opportunity type, SDG tags, and keywords.
 
+## Google OAuth
+
+The app uses Auth.js / NextAuth with Google OAuth and the Prisma adapter.
+
+Add these values to `.env`:
+
+```env
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="replace-with-a-long-random-secret"
+GOOGLE_CLIENT_ID="your-google-oauth-client-id"
+GOOGLE_CLIENT_SECRET="your-google-oauth-client-secret"
+```
+
+In Google Cloud Console, configure the OAuth client with this redirect URI:
+
+```text
+http://localhost:3000/api/auth/callback/google
+```
+
+For production, replace the host with the production domain:
+
+```text
+https://your-domain.com/api/auth/callback/google
+```
+
 ## Chat
 
 Without `OPENAI_API_KEY`, `/api/chat` returns deterministic advising responses from local program data. With `OPENAI_API_KEY`, it calls the OpenAI Responses API and still stores messages in Prisma when `DATABASE_URL` is configured.

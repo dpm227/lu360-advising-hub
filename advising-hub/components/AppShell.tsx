@@ -2,6 +2,7 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import ChatBubbleOutlineOutlinedIcon from "@mui/icons-material/ChatBubbleOutlineOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import Link from "next/link";
+import { AuthButton } from "@/components/AuthButton";
 
 type AppShellProps = {
   active: "discover" | "chat" | "profile";
@@ -64,6 +65,7 @@ export function AppShell({
               <span>{item.label}</span>
             </Link>
           ))}
+          <AuthButton />
         </div>
       </nav>
 
