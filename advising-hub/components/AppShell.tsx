@@ -1,8 +1,12 @@
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import ChatBubbleOutlineOutlinedIcon from "@mui/icons-material/ChatBubbleOutlineOutlined";
+import SearchIcon from "@mui/icons-material/Search";
 import Link from "next/link";
 
 type AppShellProps = {
   active: "discover" | "chat" | "profile";
   title: string;
+  hidePageHeader?: boolean;
   children: React.ReactNode;
 };
 
@@ -13,10 +17,29 @@ const navItems = [
 ] as const;
 
 function MaterialIcon({ type }: { type: (typeof navItems)[number]["icon"] }) {
-  return <span aria-hidden="true" className={`material-symbol ${type}`} />;
+  const iconProps = {
+    "aria-hidden": true,
+    className: "nav-icon",
+    fontSize: "small" as const,
+  };
+
+  if (type === "search") {
+    return <SearchIcon {...iconProps} />;
+  }
+
+  if (type === "chat") {
+    return <ChatBubbleOutlineOutlinedIcon {...iconProps} />;
+  }
+
+  return <AccountCircleIcon {...iconProps} />;
 }
 
-export function AppShell({ active, title, children }: AppShellProps) {
+export function AppShell({
+  active,
+  title,
+  hidePageHeader = false,
+  children,
+}: AppShellProps) {
   return (
     <main className="site-shell">
       <nav className="site-navbar" aria-label="Primary navigation">
@@ -45,10 +68,12 @@ export function AppShell({ active, title, children }: AppShellProps) {
       </nav>
 
       <section className="app-surface" aria-label={title}>
-        <header className="page-header">
-          <p className="eyebrow">LU360 Advising Hub</p>
-          <h1>{title}</h1>
-        </header>
+        {!hidePageHeader ? (
+          <header className="page-header">
+            <p className="eyebrow">LU360 Advising Hub</p>
+            <h1>{title}</h1>
+          </header>
+        ) : null}
         {children}
       </section>
     </main>

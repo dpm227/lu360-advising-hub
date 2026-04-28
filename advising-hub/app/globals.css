@@ -154,60 +154,8 @@ input {
   line-height: 1.08;
 }
 
-.material-symbol {
-  display: inline-block;
-  position: relative;
-  width: 18px;
-  height: 18px;
+.nav-icon {
   flex: 0 0 auto;
-}
-
-.material-symbol.search {
-  border: 2px solid currentColor;
-  border-radius: 50%;
-}
-
-.material-symbol.search::after {
-  content: "";
-  position: absolute;
-  right: -5px;
-  bottom: -3px;
-  width: 8px;
-  border-top: 2px solid currentColor;
-  transform: rotate(45deg);
-}
-
-.material-symbol.chat {
-  border: 2px solid currentColor;
-  border-radius: 5px;
-}
-
-.material-symbol.chat::after {
-  content: "";
-  position: absolute;
-  left: 4px;
-  bottom: -5px;
-  width: 7px;
-  height: 7px;
-  border-left: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  transform: skew(-20deg);
-}
-
-.material-symbol.profile {
-  border: 2px solid currentColor;
-  border-radius: 50%;
-}
-
-.material-symbol.profile::after {
-  content: "";
-  position: absolute;
-  left: -5px;
-  right: -5px;
-  bottom: -10px;
-  height: 9px;
-  border: 2px solid currentColor;
-  border-radius: 16px 16px 0 0;
 }
 
 .carousel-section {
@@ -591,6 +539,12 @@ input {
   padding: 12px clamp(20px, 5vw, 64px) 32px;
 }
 
+.chat-layout {
+  height: calc(100vh - 104px);
+  min-height: 560px;
+  overflow: hidden;
+}
+
 .chat-summary,
 .profile-panel,
 .profile-side,
@@ -603,8 +557,20 @@ input {
 .chat-summary {
   align-self: start;
   display: grid;
-  gap: 14px;
+  gap: 16px;
   padding: 18px;
+}
+
+.chat-title-block {
+  padding-bottom: 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--outline-variant), white 35%);
+}
+
+.chat-title-block h1 {
+  margin: 0;
+  font-size: clamp(30px, 4vw, 40px);
+  font-weight: 800;
+  line-height: 1.08;
 }
 
 .chat-summary p:not(.eyebrow) {
@@ -615,17 +581,20 @@ input {
 }
 
 .chat-panel {
-  min-height: calc(100vh - 220px);
+  min-height: 0;
+  height: 100%;
   display: grid;
-  grid-template-rows: 1fr auto auto;
+  grid-template-rows: minmax(0, 1fr) auto auto;
   overflow: hidden;
 }
 
 .messages {
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  overflow: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 18px;
 }
 
@@ -862,6 +831,10 @@ input {
   .profile-layout {
     grid-template-columns: 1fr;
   }
+
+  .chat-layout {
+    height: calc(100vh - 156px);
+  }
 }
 
 @media (max-width: 640px) {
@@ -939,8 +912,13 @@ input {
   }
 
   .carousel-section,
-  .chat-layout,
   .profile-layout {
+    padding-inline: 16px;
+  }
+
+  .chat-layout {
+    height: calc(100vh - 142px);
+    min-height: 480px;
     padding-inline: 16px;
   }
 

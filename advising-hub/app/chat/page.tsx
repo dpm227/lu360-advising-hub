@@ -113,9 +113,13 @@ export default function ChatPage() {
   }
 
   return (
-    <AppShell active="chat" title="Advisor Chat">
+    <AppShell active="chat" title="Advisor Chat" hidePageHeader>
       <section className="chat-layout">
         <div className="chat-summary">
+          <div className="chat-title-block">
+            <p className="eyebrow">LU360 Advising Hub</p>
+            <h1>Advisor Chat</h1>
+          </div>
           <p className="eyebrow">Context loaded</p>
           <h2>Programs, profile, requirements</h2>
           <p>
