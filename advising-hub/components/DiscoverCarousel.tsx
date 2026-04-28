@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { ProgramRecord } from "@/lib/program-data";
+import { ProgramActions } from "@/components/ProgramActions";
 
 type DiscoverCarouselProps = {
   programs: ProgramRecord[];
@@ -110,9 +111,12 @@ export function DiscoverCarousel({ programs }: DiscoverCarouselProps) {
               <p className="eyebrow">Selected program</p>
               <h2>{selectedProgram.title}</h2>
             </div>
-            <a href={selectedProgram.sourceUrl} target="_blank" rel="noreferrer">
-              View source
-            </a>
+            <div className="selected-program-links">
+              <ProgramActions programSlug={selectedProgram.slug} />
+              <a href={selectedProgram.sourceUrl} target="_blank" rel="noreferrer">
+                View source
+              </a>
+            </div>
           </div>
           <p>{selectedProgram.description}</p>
           <dl className="program-facts">
@@ -155,4 +159,3 @@ export function DiscoverCarousel({ programs }: DiscoverCarouselProps) {
     </section>
   );
 }
-

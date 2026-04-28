@@ -387,6 +387,15 @@ input {
   font-weight: 800;
 }
 
+.selected-program-links {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .selected-program-content > p {
   margin: 0;
   color: #49454f;
@@ -457,6 +466,25 @@ input {
 
 .signin-panel button {
   justify-self: start;
+}
+
+.profile-link-button {
+  justify-self: start;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--outline-variant);
+  border-radius: 999px;
+  padding: 0 14px;
+  background: white;
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 20px;
+}
+
+.profile-link-button:hover {
+  background: var(--primary-container);
 }
 
 .section-heading {
@@ -615,6 +643,49 @@ input {
   font-size: 12px;
   font-weight: 700;
   line-height: 16px;
+}
+
+.program-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.program-action {
+  min-height: 34px;
+  border: 1px solid var(--outline-variant);
+  border-radius: 999px;
+  padding: 0 12px;
+  background: white;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.program-action:hover {
+  background: var(--primary-container);
+}
+
+.program-action.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: white;
+}
+
+.program-action.muted {
+  color: #49454f;
+}
+
+.program-action.muted.active {
+  border-color: #49454f;
+  background: #49454f;
+  color: white;
+}
+
+.program-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .chat-layout,
@@ -885,6 +956,12 @@ input {
   margin: 0;
   font-size: 16px;
   font-weight: 700;
+}
+
+.profile-empty {
+  color: #49454f;
+  font-size: 13px;
+  line-height: 19px;
 }
 
 .profile-side {

@@ -1,61 +1,148 @@
+import Link from "next/link";
+import { getServerSession } from "next-auth";
 import { AppShell } from "@/components/AppShell";
 import { ProgramCard } from "@/components/ProgramCard";
-import { demoProfile, rankedPrograms } from "@/lib/recommendations";
+import { authOptions } from "@/lib/auth";
+import { programs } from "@/lib/program-data";
+import { prisma } from "@/lib/prisma-client";
+import { rankedPrograms, type StudentProfile } from "@/lib/recommendations";
+import { ensureStudentForUser } from "@/lib/student-profile";
 
-export default function ProfilePage() {
-  const matches = rankedPrograms().slice(0, 2);
+function initialsFor(name: string) {
+  return (
+    name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "LU"
+  );
+}
+
+export default async function ProfilePage() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id || !session.user.email) {
+    return (
+      <AppShell active="profile" title="Profile">
+        <section className="signin-panel">
+          <p className="eyebrow">Student profile</p>
+          <h2>Sign in to use your profile</h2>
+          <p>
+            Google sign-in creates your student profile and lets the hub save
+            programs, hide programs, and keep chat history connected to you.
+          </p>
+          <Link className="profile-link-button" href="/signin">
+            Sign in with Google
+          </Link>
+        </section>
+      </AppShell>
+    );
+  }
+
+  const ensuredStudent = await ensureStudentForUser({
+    id: session.user.id,
+    email: session.user.email,
+    name: session.user.name ?? null,
+  });
+  const student = await prisma.student.findUniqueOrThrow({
+    where: { id: ensuredStudent.id },
+    include: {
+      opportunityInterests: { include: { opportunityType: true } },
+      keywords: true,
+      statuses: true,
+      savedPrograms: { include: { program: { select: { slug: true } } } },
+      hiddenPrograms: { include: { program: { select: { slug: true } } } },
+    },
+  });
+
+  const name =
+    [student.firstName, student.lastName].filter(Boolean).join(" ") ||
+    session.user.name ||
+    student.email;
+  const profile: StudentProfile = {
+    name,
+    email: student.email,
+    classYear: student.classYear ?? "",
+    college: student.college ?? "",
+    major: student.major ?? "",
+    needsFunding: student.needsFunding,
+    interests: student.opportunityInterests.map(
+      (interest) => interest.opportunityType.name,
+    ),
+    keywords: student.keywords.map((keyword) => keyword.keyword),
+    statuses: student.statuses.map((status) => status.statusName),
+  };
+  const savedSlugs = new Set(
+    student.savedPrograms.map((saved) => saved.program.slug),
+  );
+  const hiddenSlugs = new Set(
+    student.hiddenPrograms.map((hidden) => hidden.program.slug),
+  );
+  const savedPrograms = programs.filter((program) => savedSlugs.has(program.slug));
+  const matches = rankedPrograms(profile)
+    .filter(({ program }) => !hiddenSlugs.has(program.slug))
+    .slice(0, 2);
 
   return (
     <AppShell active="profile" title="Profile">
       <section className="profile-layout">
         <div className="profile-panel">
           <div className="profile-header">
-            <div className="profile-avatar">MC</div>
+            <div className="profile-avatar">{initialsFor(name)}</div>
             <div>
               <p className="eyebrow">Student profile</p>
-              <h2>{demoProfile.name}</h2>
-              <p>{demoProfile.email}</p>
+              <h2>{name}</h2>
+              <p>{student.email}</p>
             </div>
           </div>
 
           <div className="profile-fields">
             <div>
               <span>Class year</span>
-              <strong>{demoProfile.classYear}</strong>
+              <strong>{profile.classYear || "Not set"}</strong>
             </div>
             <div>
               <span>College</span>
-              <strong>{demoProfile.college}</strong>
+              <strong>{profile.college || "Not set"}</strong>
             </div>
             <div>
               <span>Major</span>
-              <strong>{demoProfile.major}</strong>
+              <strong>{profile.major || "Not set"}</strong>
             </div>
             <div>
               <span>Funding needed</span>
-              <strong>{demoProfile.needsFunding ? "Yes" : "No"}</strong>
+              <strong>{profile.needsFunding ? "Yes" : "No"}</strong>
             </div>
           </div>
 
           <div className="preference-block">
             <h3>Opportunity interests</h3>
             <div className="chip-row">
-              {demoProfile.interests.map((interest) => (
-                <span className="chip" key={interest}>
-                  {interest}
-                </span>
-              ))}
+              {profile.interests.length > 0 ? (
+                profile.interests.map((interest) => (
+                  <span className="chip" key={interest}>
+                    {interest}
+                  </span>
+                ))
+              ) : (
+                <span className="profile-empty">No interests saved yet.</span>
+              )}
             </div>
           </div>
 
           <div className="preference-block">
             <h3>Keywords</h3>
             <div className="chip-row">
-              {demoProfile.keywords.map((keyword) => (
-                <span className="chip" key={keyword}>
-                  {keyword}
-                </span>
-              ))}
+              {profile.keywords.length > 0 ? (
+                profile.keywords.map((keyword) => (
+                  <span className="chip" key={keyword}>
+                    {keyword}
+                  </span>
+                ))
+              ) : (
+                <span className="profile-empty">No keywords saved yet.</span>
+              )}
             </div>
           </div>
         </div>
@@ -64,15 +151,23 @@ export default function ProfilePage() {
           <div className="section-heading">
             <div>
               <p className="eyebrow">Saved path</p>
-              <h2>Top matches</h2>
+              <h2>{savedPrograms.length > 0 ? "Saved programs" : "Top matches"}</h2>
             </div>
           </div>
-          {matches.map(({ program }) => (
-            <ProgramCard compact program={program} key={program.id} />
+          {(savedPrograms.length > 0
+            ? savedPrograms.map((program) => ({ program }))
+            : matches
+          ).map(({ program }) => (
+            <ProgramCard
+              compact
+              initialHidden={hiddenSlugs.has(program.slug)}
+              initialSaved={savedSlugs.has(program.slug)}
+              program={program}
+              key={program.id}
+            />
           ))}
         </aside>
       </section>
     </AppShell>
   );
 }
-

@@ -1,11 +1,19 @@
 import type { ProgramRecord } from "@/lib/program-data";
+import { ProgramActions } from "@/components/ProgramActions";
 
 type ProgramCardProps = {
   program: ProgramRecord;
   compact?: boolean;
+  initialSaved?: boolean;
+  initialHidden?: boolean;
 };
 
-export function ProgramCard({ program, compact = false }: ProgramCardProps) {
+export function ProgramCard({
+  program,
+  compact = false,
+  initialSaved = false,
+  initialHidden = false,
+}: ProgramCardProps) {
   return (
     <article className={`program-card ${compact ? "compact" : ""}`}>
       <div
@@ -44,6 +52,11 @@ export function ProgramCard({ program, compact = false }: ProgramCardProps) {
             </span>
           ))}
         </div>
+        <ProgramActions
+          initialHidden={initialHidden}
+          initialSaved={initialSaved}
+          programSlug={program.slug}
+        />
       </div>
     </article>
   );

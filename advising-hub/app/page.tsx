@@ -2,11 +2,89 @@ import { AppShell } from "@/components/AppShell";
 import { DiscoverCarousel } from "@/components/DiscoverCarousel";
 import { ProgramCard } from "@/components/ProgramCard";
 import { programs } from "@/lib/program-data";
-import { rankedPrograms } from "@/lib/recommendations";
+import {
+  demoProfile,
+  rankedPrograms,
+  type StudentProfile,
+} from "@/lib/recommendations";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma-client";
+import { ensureStudentForUser } from "@/lib/student-profile";
+import { getServerSession } from "next-auth";
 
-export default function Home() {
-  const featuredPrograms = programs.filter((program) => program.featured || program.imageUrl);
-  const recommendations = rankedPrograms().slice(0, 3);
+async function getStudentProgramLists() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id || !session.user.email) {
+    return {
+      savedSlugs: new Set<string>(),
+      hiddenSlugs: new Set<string>(),
+      profileName: demoProfile.name,
+      profile: demoProfile,
+    };
+  }
+
+  const ensuredStudent = await ensureStudentForUser({
+    id: session.user.id,
+    email: session.user.email,
+    name: session.user.name ?? null,
+  });
+  const student = await prisma.student.findUniqueOrThrow({
+    where: { id: ensuredStudent.id },
+    include: {
+      opportunityInterests: { include: { opportunityType: true } },
+      keywords: true,
+      statuses: true,
+    },
+  });
+
+  const [savedPrograms, hiddenPrograms] = await Promise.all([
+    prisma.studentSavedProgram.findMany({
+      where: { studentId: student.id },
+      include: { program: { select: { slug: true } } },
+    }),
+    prisma.studentHiddenProgram.findMany({
+      where: { studentId: student.id },
+      include: { program: { select: { slug: true } } },
+    }),
+  ]);
+
+  const name =
+    [student.firstName, student.lastName].filter(Boolean).join(" ") ||
+    session.user.name ||
+    student.email;
+  const profile: StudentProfile = {
+    name,
+    email: student.email,
+    classYear: student.classYear ?? "",
+    college: student.college ?? "",
+    major: student.major ?? "",
+    needsFunding: student.needsFunding,
+    interests: student.opportunityInterests.map(
+      (interest) => interest.opportunityType.name,
+    ),
+    keywords: student.keywords.map((keyword) => keyword.keyword),
+    statuses: student.statuses.map((status) => status.statusName),
+  };
+
+  return {
+    savedSlugs: new Set(savedPrograms.map((saved) => saved.program.slug)),
+    hiddenSlugs: new Set(hiddenPrograms.map((hidden) => hidden.program.slug)),
+    profileName: name,
+    profile,
+  };
+}
+
+export default async function Home() {
+  const { savedSlugs, hiddenSlugs, profileName, profile } =
+    await getStudentProgramLists();
+  const visiblePrograms = programs.filter((program) => !hiddenSlugs.has(program.slug));
+  const featuredPrograms = visiblePrograms.filter(
+    (program) => program.featured || program.imageUrl,
+  );
+  const recommendations = rankedPrograms(profile)
+    .filter(({ program }) => !hiddenSlugs.has(program.slug))
+    .slice(0, 3);
 
   return (
     <AppShell active="discover" title="Discover">
@@ -15,7 +93,7 @@ export default function Home() {
       <section className="content-section">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Recommended for Maya</p>
+            <p className="eyebrow">Recommended for {profileName}</p>
             <h2>Best current fits</h2>
           </div>
           <span className="score-pill">Live profile match</span>
@@ -41,8 +119,13 @@ export default function Home() {
           </div>
         </div>
         <div className="program-grid">
-          {programs.map((program) => (
-            <ProgramCard program={program} key={program.id} />
+          {visiblePrograms.map((program) => (
+            <ProgramCard
+              initialHidden={hiddenSlugs.has(program.slug)}
+              initialSaved={savedSlugs.has(program.slug)}
+              program={program}
+              key={program.id}
+            />
           ))}
         </div>
       </section>

@@ -1,6 +1,14 @@
 import { programs, type ProgramRecord } from "@/lib/program-data";
 import { getPrisma } from "@/lib/prisma";
-import { demoProfile, rankedPrograms } from "@/lib/recommendations";
+import { prisma as db } from "@/lib/prisma-client";
+import {
+  demoProfile,
+  rankedPrograms,
+  type StudentProfile,
+} from "@/lib/recommendations";
+import { authOptions } from "@/lib/auth";
+import { ensureStudentForUser } from "@/lib/student-profile";
+import { getServerSession } from "next-auth";
 
 type ChatRequest = {
   message?: string;
@@ -62,6 +70,20 @@ type ChatProgramContext = {
     type: string;
     value: string;
   }>;
+};
+
+type ChatStudent = {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+  classYear: string | null;
+  college: string | null;
+  major: string | null;
+  needsFunding: boolean;
+  opportunityInterests: Array<{ opportunityType: { name: string } }>;
+  keywords: Array<{ keyword: string }>;
+  statuses: Array<{ statusName: string }>;
 };
 
 const SYSTEM_PROMPT = `You are the Lehigh360 AI assistant.
@@ -167,6 +189,51 @@ function dbProgramToContext(program: DbProgram): ChatProgramContext {
   };
 }
 
+function studentToProfile(student: ChatStudent | null): StudentProfile {
+  if (!student) {
+    return demoProfile;
+  }
+
+  const name = [student.firstName, student.lastName].filter(Boolean).join(" ");
+
+  return {
+    name: name || student.email,
+    email: student.email,
+    classYear: student.classYear ?? "",
+    college: student.college ?? "",
+    major: student.major ?? "",
+    needsFunding: student.needsFunding,
+    interests: student.opportunityInterests.map(
+      (interest) => interest.opportunityType.name,
+    ),
+    keywords: student.keywords.map((keyword) => keyword.keyword),
+    statuses: student.statuses.map((status) => status.statusName),
+  };
+}
+
+async function getSessionStudent() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id || !session.user.email) {
+    return null;
+  }
+
+  const ensuredStudent = await ensureStudentForUser({
+    id: session.user.id,
+    email: session.user.email,
+    name: session.user.name ?? null,
+  });
+
+  return db.student.findUnique({
+    where: { id: ensuredStudent.id },
+    include: {
+      opportunityInterests: { include: { opportunityType: true } },
+      keywords: true,
+      statuses: true,
+    },
+  });
+}
+
 async function getProgramContext() {
   const prisma = await getPrisma();
 
@@ -200,9 +267,9 @@ async function getProgramContext() {
   };
 }
 
-function localAdvisorResponse(message: string) {
+function localAdvisorResponse(message: string, profile: StudentProfile = demoProfile) {
   const lowered = message.toLowerCase();
-  const ranked = rankedPrograms();
+  const ranked = rankedPrograms(profile);
   const mentionedProgram =
     programs.find((program) => lowered.includes(program.title.toLowerCase())) ??
     programs.find((program) => lowered.includes(program.slug.replaceAll("-", " "))) ??
@@ -218,7 +285,7 @@ function localAdvisorResponse(message: string) {
   return `## ${target.title}
 
 This program has a **${match?.score ?? 70}% profile match** for ${
-    demoProfile.name
+    profile.name
   }.
 
 - **Eligibility:** ${target.eligibleClassYears.join(", ") || "Not listed"}
@@ -236,7 +303,11 @@ ${reasons ? `**Fit rationale:** ${reasons}.` : ""}
 This hub helps you find programs. To see the official program information, use **Access Database** or **View Program** in Lehigh360.`;
 }
 
-async function askOpenAI(message: string, catalog: ChatProgramContext[]) {
+async function askOpenAI(
+  message: string,
+  catalog: ChatProgramContext[],
+  profile: StudentProfile,
+) {
   if (!process.env.OPENAI_API_KEY) {
     return null;
   }
@@ -258,7 +329,7 @@ async function askOpenAI(message: string, catalog: ChatProgramContext[]) {
           {
             role: "user",
             content: `Current student profile, if known:
-${JSON.stringify(demoProfile, null, 2)}
+${JSON.stringify(profile, null, 2)}
 
 Current Lehigh360 program catalog:
 ${JSON.stringify(catalog, null, 2)}
@@ -300,36 +371,57 @@ export async function POST(request: Request) {
     return Response.json({ error: "Message is required." }, { status: 400 });
   }
 
-  const prisma = await getPrisma();
+  let student: ChatStudent | null = null;
+
+  try {
+    student = (await getSessionStudent()) as ChatStudent | null;
+  } catch {
+    student = null;
+  }
+
+  const profile = studentToProfile(student);
   let chatThreadId = body.threadId ?? null;
 
   try {
-    if (prisma) {
-      const thread = chatThreadId
-        ? await prisma.chatThread.findUnique({ where: { id: chatThreadId } })
-        : await prisma.chatThread.create({
-            data: { title: message.slice(0, 80) },
-          });
+    const existingThread = chatThreadId
+      ? await db.chatThread.findUnique({
+          where: { id: chatThreadId },
+          select: { id: true, studentId: true },
+        })
+      : null;
 
-      chatThreadId = thread?.id ?? chatThreadId;
+    const canUseThread =
+      existingThread &&
+      ((!student && !existingThread.studentId) ||
+        (student && existingThread.studentId === student.id));
 
-      if (chatThreadId) {
-        await prisma.chatMessage.create({
-          data: { chatThreadId, role: "USER", content: message },
+    const thread = canUseThread
+      ? existingThread
+      : await db.chatThread.create({
+          data: {
+            title: message.slice(0, 80),
+            studentId: student?.id,
+          },
+          select: { id: true, studentId: true },
         });
-      }
-    }
+
+    chatThreadId = thread.id;
+
+    await db.chatMessage.create({
+      data: { chatThreadId, role: "USER", content: message },
+    });
   } catch {
     chatThreadId = body.threadId ?? null;
   }
 
   const { programs: programCatalog } = await getProgramContext();
   const aiResponse =
-    (await askOpenAI(message, programCatalog)) ?? localAdvisorResponse(message);
+    (await askOpenAI(message, programCatalog, profile)) ??
+    localAdvisorResponse(message, profile);
 
   try {
-    if (prisma && chatThreadId) {
-      await prisma.chatMessage.create({
+    if (chatThreadId) {
+      await db.chatMessage.create({
         data: { chatThreadId, role: "ASSISTANT", content: aiResponse },
       });
     }
