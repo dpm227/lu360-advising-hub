@@ -32,8 +32,6 @@ export async function ensureStudentForUser(user: UserIdentity) {
       where: { userId: user.id },
       update: {
         email: user.email,
-        firstName,
-        lastName,
         organizationId: organization.id,
       },
       create: {
@@ -64,4 +62,3 @@ export async function ensureStudentForUser(user: UserIdentity) {
     throw new Error(`Unable to create student profile for ${user.email}`);
   }
 }
-

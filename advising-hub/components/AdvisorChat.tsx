@@ -1,0 +1,189 @@
+"use client";
+
+import { type FormEvent, useMemo, useState } from "react";
+import { AppShell } from "@/components/AppShell";
+import { MarkdownMessage } from "@/components/MarkdownMessage";
+import { programs } from "@/lib/program-data";
+
+type Message = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+};
+
+export type ChatPageContext = {
+  isSignedIn: boolean;
+  profileName: string;
+  summary: string;
+};
+
+type AdvisorChatProps = {
+  context: ChatPageContext;
+};
+
+function createStarterMessages(context: ChatPageContext): Message[] {
+  return [
+    {
+      id: "welcome",
+      role: "assistant",
+      content: context.isSignedIn
+        ? `## Hi ${context.profileName}, I'm the Lehigh360 AI assistant.
+
+I have your saved profile context loaded. Ask me about eligibility, funding, deadlines, credit, or whether a specific Lehigh360 program fits your goals.`
+        : `## Hi, I'm the Lehigh360 AI assistant.
+
+Tell me a little about yourself: your class year, college, major, interests, goals, funding needs, and what kind of experience you want. I can help you find Lehigh360 high-impact programs that may fit.`,
+    },
+  ];
+}
+
+function fallbackReply(input: string) {
+  const lowered = input.toLowerCase();
+  const target =
+    programs.find((program) => lowered.includes(program.slug.replaceAll("-", " "))) ??
+    (lowered.includes("marcon")
+      ? programs.find((program) => program.slug === "marcon-fellows")
+      : undefined) ??
+    programs[0];
+
+  return `${target.title} is a strong place to start. It is open to ${target.eligibleClassYears.join(
+    ", ",
+  )}, runs during ${target.periods.join(
+    ", ",
+  )}, and ${target.fundingTypes.length > 0 ? `offers ${target.fundingTypes.join(" and ").toLowerCase()}` : "does not currently list funding"}. ${
+    target.deadline ? `The listed deadline is ${target.deadline}. ` : ""
+  }Based on your profile, I would check fit around ${target.opportunityTypes
+    .slice(0, 3)
+    .join(", ")
+    .toLowerCase()} first.`;
+}
+
+export function AdvisorChat({ context }: AdvisorChatProps) {
+  const [messages, setMessages] = useState<Message[]>(() =>
+    createStarterMessages(context),
+  );
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [input, setInput] = useState("");
+  const [isSending, setIsSending] = useState(false);
+
+  const quickPrompts = useMemo(
+    () => [
+      "Am I eligible for Marcon Fellows?",
+      "Show funded research programs.",
+      "Compare LUSSI and Eco-Rep.",
+    ],
+    [],
+  );
+
+  async function sendMessage(message: string) {
+    const trimmed = message.trim();
+    if (!trimmed || isSending) {
+      return;
+    }
+
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: trimmed,
+    };
+
+    setMessages((current) => [...current, userMessage]);
+    setInput("");
+    setIsSending(true);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: trimmed, threadId }),
+      });
+      const payload = (await response.json()) as {
+        response?: string;
+        threadId?: string;
+      };
+
+      setThreadId(payload.threadId ?? threadId);
+      setMessages((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: payload.response ?? fallbackReply(trimmed),
+        },
+      ]);
+    } catch {
+      setMessages((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: fallbackReply(trimmed),
+        },
+      ]);
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void sendMessage(input);
+  }
+
+  return (
+    <AppShell active="chat" title="Advisor Chat" hidePageHeader>
+      <section className="chat-layout">
+        <div className="chat-summary">
+          <div className="chat-title-block">
+            <p className="eyebrow">LU360 Advising Hub</p>
+            <h1>Advisor Chat</h1>
+          </div>
+          <p className="eyebrow">
+            {context.isSignedIn ? "Profile context loaded" : "Demo context loaded"}
+          </p>
+          <h2>Programs, profile, requirements</h2>
+          <p>{context.summary}</p>
+        </div>
+
+        <div className="chat-panel">
+          <div className="messages" aria-live="polite">
+            {messages.map((message) => (
+              <div className={`message ${message.role}`} key={message.id}>
+                <MarkdownMessage content={message.content} />
+              </div>
+            ))}
+            {isSending ? (
+              <div className="message assistant pending">
+                <MarkdownMessage content="Checking program requirements..." />
+              </div>
+            ) : null}
+          </div>
+
+          <div className="quick-prompts">
+            {quickPrompts.map((prompt) => (
+              <button
+                type="button"
+                key={prompt}
+                onClick={() => void sendMessage(prompt)}
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+
+          <form className="composer" onSubmit={handleSubmit}>
+            <input
+              aria-label="Message"
+              placeholder="Ask about fit, deadlines, funding, credit..."
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+            />
+            <button type="submit" disabled={isSending || input.trim() === ""}>
+              Send
+            </button>
+          </form>
+        </div>
+      </section>
+    </AppShell>
+  );
+}

@@ -1,6 +1,4 @@
-import AccountCircleIcon from "@mui/icons-material/AccountCircle";
-import ChatBubbleOutlineOutlinedIcon from "@mui/icons-material/ChatBubbleOutlineOutlined";
-import SearchIcon from "@mui/icons-material/Search";
+import type { ReactNode, SVGProps } from "react";
 import Link from "next/link";
 import { AuthButton } from "@/components/AuthButton";
 
@@ -8,7 +6,7 @@ type AppShellProps = {
   active: "discover" | "chat" | "profile";
   title: string;
   hidePageHeader?: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 const navItems = [
@@ -17,22 +15,54 @@ const navItems = [
   { id: "profile", label: "Profile", href: "/profile", icon: "profile" },
 ] as const;
 
-function MaterialIcon({ type }: { type: (typeof navItems)[number]["icon"] }) {
+function NavIconBase({ children, ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      fill="none"
+      height="20"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+      width="20"
+    >
+      {children}
+    </svg>
+  );
+}
+
+function NavIcon({ type }: { type: (typeof navItems)[number]["icon"] }) {
   const iconProps = {
     "aria-hidden": true,
     className: "nav-icon",
-    fontSize: "small" as const,
   };
 
   if (type === "search") {
-    return <SearchIcon {...iconProps} />;
+    return (
+      <NavIconBase {...iconProps}>
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.35-4.35" />
+      </NavIconBase>
+    );
   }
 
   if (type === "chat") {
-    return <ChatBubbleOutlineOutlinedIcon {...iconProps} />;
+    return (
+      <NavIconBase {...iconProps}>
+        <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+      </NavIconBase>
+    );
   }
 
-  return <AccountCircleIcon {...iconProps} />;
+  return (
+    <NavIconBase {...iconProps}>
+      <path d="M18 20a6 6 0 0 0-12 0" />
+      <circle cx="12" cy="10" r="4" />
+      <circle cx="12" cy="12" r="10" />
+    </NavIconBase>
+  );
 }
 
 export function AppShell({
@@ -61,7 +91,7 @@ export function AppShell({
               href={item.href}
               key={item.id}
             >
-              <MaterialIcon type={item.icon} />
+              <NavIcon type={item.icon} />
               <span>{item.label}</span>
             </Link>
           ))}

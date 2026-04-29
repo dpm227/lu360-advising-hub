@@ -2,8 +2,14 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { AppShell } from "@/components/AppShell";
 import { ProgramCard } from "@/components/ProgramCard";
+import { ProfileEditButton } from "@/components/ProfileEditButton";
 import { authOptions } from "@/lib/auth";
-import { programs } from "@/lib/program-data";
+import {
+  classYears,
+  colleges,
+  opportunityTypes,
+  programs,
+} from "@/lib/program-data";
 import { prisma } from "@/lib/prisma-client";
 import { rankedPrograms, type StudentProfile } from "@/lib/recommendations";
 import { ensureStudentForUser } from "@/lib/student-profile";
@@ -73,6 +79,32 @@ export default async function ProfilePage() {
     keywords: student.keywords.map((keyword) => keyword.keyword),
     statuses: student.statuses.map((status) => status.statusName),
   };
+  const editableProfile = {
+    firstName: student.firstName ?? "",
+    lastName: student.lastName ?? "",
+    email: student.email,
+    classYear: profile.classYear,
+    college: profile.college,
+    major: profile.major,
+    needsFunding: profile.needsFunding,
+    interests: profile.interests,
+    keywords: profile.keywords,
+    statuses: profile.statuses,
+  };
+  const profileOptions = {
+    classYears,
+    colleges,
+    opportunityTypes,
+    statusSuggestions: [
+      "F1RST+ Student",
+      "Transfer Student",
+      "International Student",
+      "Graduate Student",
+      "Student Athlete",
+      "Commuter Student",
+      "Veteran",
+    ],
+  };
   const savedSlugs = new Set(
     student.savedPrograms.map((saved) => saved.program.slug),
   );
@@ -89,12 +121,18 @@ export default async function ProfilePage() {
       <section className="profile-layout">
         <div className="profile-panel">
           <div className="profile-header">
-            <div className="profile-avatar">{initialsFor(name)}</div>
-            <div>
-              <p className="eyebrow">Student profile</p>
-              <h2>{name}</h2>
-              <p>{student.email}</p>
+            <div className="profile-header-main">
+              <div className="profile-avatar">{initialsFor(name)}</div>
+              <div>
+                <p className="eyebrow">Student profile</p>
+                <h2>{name}</h2>
+                <p>{student.email}</p>
+              </div>
             </div>
+            <ProfileEditButton
+              initialProfile={editableProfile}
+              options={profileOptions}
+            />
           </div>
 
           <div className="profile-fields">
