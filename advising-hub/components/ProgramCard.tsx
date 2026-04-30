@@ -5,14 +5,12 @@ type ProgramCardProps = {
   program: ProgramRecord;
   compact?: boolean;
   initialSaved?: boolean;
-  initialHidden?: boolean;
 };
 
 export function ProgramCard({
   program,
   compact = false,
   initialSaved = false,
-  initialHidden = false,
 }: ProgramCardProps) {
   return (
     <article className={`program-card ${compact ? "compact" : ""}`}>
@@ -54,9 +52,9 @@ export function ProgramCard({
         </div>
         <ProgramActions
           applicationUrl={program.applicationUrl}
-          initialHidden={initialHidden}
           initialSaved={initialSaved}
           programSlug={program.slug}
+          sourceUrl={program.sourceUrl}
         />
       </div>
     </article>

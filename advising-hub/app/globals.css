@@ -692,9 +692,9 @@ select {
 }
 
 .program-action-link {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: white;
+  border-color: var(--outline-variant);
+  background: white;
+  color: var(--primary);
 }
 
 .program-action:hover {
@@ -702,22 +702,12 @@ select {
 }
 
 .program-action-link:hover {
-  background: color-mix(in srgb, var(--primary), black 12%);
+  background: var(--primary-container);
 }
 
 .program-action.active {
   border-color: var(--primary);
   background: var(--primary);
-  color: white;
-}
-
-.program-action.muted {
-  color: #49454f;
-}
-
-.program-action.muted.active {
-  border-color: #49454f;
-  background: #49454f;
   color: white;
 }
 

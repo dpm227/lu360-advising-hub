@@ -135,7 +135,6 @@ export default async function Home() {
         <div className="program-grid">
           {visiblePrograms.map((program) => (
             <ProgramCard
-              initialHidden={hiddenSlugs.has(program.slug)}
               initialSaved={savedSlugs.has(program.slug)}
               program={program}
               key={program.id}

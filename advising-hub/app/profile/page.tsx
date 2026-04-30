@@ -205,7 +205,6 @@ export default async function ProfilePage() {
           ).map(({ program }) => (
             <ProgramCard
               compact
-              initialHidden={hiddenSlugs.has(program.slug)}
               initialSaved={savedSlugs.has(program.slug)}
               program={program}
               key={program.id}

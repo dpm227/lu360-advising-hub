@@ -124,10 +124,8 @@ export function DiscoverCarousel({ programs }: DiscoverCarouselProps) {
               <ProgramActions
                 applicationUrl={selectedProgram.applicationUrl}
                 programSlug={selectedProgram.slug}
+                sourceUrl={selectedProgram.sourceUrl}
               />
-              <a href={selectedProgram.sourceUrl} target="_blank" rel="noreferrer">
-                View source
-              </a>
             </div>
           </div>
           <p>{selectedProgram.description}</p>

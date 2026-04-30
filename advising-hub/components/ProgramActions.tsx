@@ -6,21 +6,20 @@ import { useState } from "react";
 type ProgramActionsProps = {
   programSlug: string;
   applicationUrl?: string;
+  sourceUrl: string;
   initialSaved?: boolean;
-  initialHidden?: boolean;
 };
 
-type ProgramAction = "save" | "unsave" | "hide" | "unhide";
+type ProgramAction = "save" | "unsave";
 
 export function ProgramActions({
   programSlug,
   applicationUrl,
+  sourceUrl,
   initialSaved = false,
-  initialHidden = false,
 }: ProgramActionsProps) {
   const { status } = useSession();
   const [saved, setSaved] = useState(initialSaved);
-  const [hidden, setHidden] = useState(initialHidden);
   const [isBusy, setIsBusy] = useState(false);
 
   async function updateProgram(action: ProgramAction) {
@@ -47,11 +46,9 @@ export function ProgramActions({
 
       const payload = (await response.json()) as {
         saved?: boolean;
-        hidden?: boolean;
       };
 
       setSaved(Boolean(payload.saved));
-      setHidden(Boolean(payload.hidden));
     } finally {
       setIsBusy(false);
     }
@@ -77,14 +74,14 @@ export function ProgramActions({
           Apply
         </a>
       ) : null}
-      <button
-        className={hidden ? "program-action muted active" : "program-action muted"}
-        disabled={isBusy}
-        type="button"
-        onClick={() => updateProgram(hidden ? "unhide" : "hide")}
+      <a
+        className="program-action program-action-link"
+        href={sourceUrl}
+        rel="noreferrer"
+        target="_blank"
       >
-        {hidden ? "Hidden" : "Hide"}
-      </button>
+        View source
+      </a>
     </div>
   );
 }
