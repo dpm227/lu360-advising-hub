@@ -412,6 +412,7 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": false,
     "gpaMinimumRequired": true,
+    "gpaRequirement": "3.20",
     "periods": [
       "Fall",
       "Spring"

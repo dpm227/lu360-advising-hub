@@ -152,8 +152,12 @@ export function DiscoverCarousel({ programs }: DiscoverCarouselProps) {
               <dd>{selectedProgram.creditAvailable ? "Yes" : "No"}</dd>
             </div>
             <div>
-              <dt>Photos</dt>
-              <dd>{selectedProgram.photoUrls.length} available</dd>
+              <dt>GPA</dt>
+              <dd>
+                {selectedProgram.gpaMinimumRequired
+                  ? selectedProgram.gpaRequirement || "Required, not listed"
+                  : "No minimum listed"}
+              </dd>
             </div>
           </dl>
           <div className="chip-row">
