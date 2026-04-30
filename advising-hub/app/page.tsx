@@ -79,12 +79,13 @@ export default async function Home() {
   const { savedSlugs, hiddenSlugs, profileName, profile } =
     await getStudentProgramLists();
   const visiblePrograms = programs.filter((program) => !hiddenSlugs.has(program.slug));
-  const featuredPrograms = visiblePrograms.filter(
-    (program) => program.featured || program.imageUrl,
+  const rankedVisiblePrograms = rankedPrograms(profile).filter(
+    ({ program }) => !hiddenSlugs.has(program.slug),
   );
-  const recommendations = rankedPrograms(profile)
-    .filter(({ program }) => !hiddenSlugs.has(program.slug))
-    .slice(0, 3);
+  const featuredPrograms = rankedVisiblePrograms
+    .filter(({ program }) => program.featured || program.imageUrl)
+    .map(({ program, score }) => ({ program, score }));
+  const recommendations = rankedVisiblePrograms.slice(0, 3);
 
   return (
     <AppShell active="discover" title="Discover">

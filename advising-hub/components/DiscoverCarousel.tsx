@@ -4,8 +4,13 @@ import { useRef, useState } from "react";
 import type { ProgramRecord } from "@/lib/program-data";
 import { ProgramActions } from "@/components/ProgramActions";
 
+export type FeaturedProgramMatch = {
+  program: ProgramRecord;
+  score: number;
+};
+
 type DiscoverCarouselProps = {
-  programs: ProgramRecord[];
+  programs: FeaturedProgramMatch[];
 };
 
 function formatDate(date?: string) {
@@ -24,7 +29,8 @@ function formatDate(date?: string) {
 export function DiscoverCarousel({ programs }: DiscoverCarouselProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const selectedProgram = programs[selectedIndex];
+  const selectedMatch = programs[selectedIndex];
+  const selectedProgram = selectedMatch?.program;
 
   function selectProgram(index: number) {
     const nextIndex = (index + programs.length) % programs.length;
@@ -63,7 +69,7 @@ export function DiscoverCarousel({ programs }: DiscoverCarouselProps) {
         </button>
 
         <div className="program-carousel">
-          {programs.map((program, index) => (
+          {programs.map(({ program, score }, index) => (
             <button
               className={`hero-program ${index === selectedIndex ? "selected" : ""} ${
                 program.imageUrl ? "" : "no-image"
@@ -81,6 +87,9 @@ export function DiscoverCarousel({ programs }: DiscoverCarouselProps) {
               onClick={() => selectProgram(index)}
             >
               <span>{program.title}</span>
+              {score > 0 ? (
+                <strong className="hero-program-match-label">{score}% Match</strong>
+              ) : null}
             </button>
           ))}
         </div>
