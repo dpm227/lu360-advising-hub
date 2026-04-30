@@ -4,13 +4,8 @@ import { AppShell } from "@/components/AppShell";
 import { ProgramCard } from "@/components/ProgramCard";
 import { ProfileEditButton } from "@/components/ProfileEditButton";
 import { authOptions } from "@/lib/auth";
-import {
-  classYears,
-  colleges,
-  opportunityTypes,
-  programs,
-} from "@/lib/program-data";
 import { prisma } from "@/lib/prisma-client";
+import { getProgramOptions, getProgramRecords } from "@/lib/program-records";
 import { rankedPrograms, type StudentProfile } from "@/lib/recommendations";
 import { ensureStudentForUser } from "@/lib/student-profile";
 
@@ -51,6 +46,8 @@ export default async function ProfilePage() {
     email: session.user.email,
     name: session.user.name ?? null,
   });
+  const { programs } = await getProgramRecords("profile page");
+  const programOptions = getProgramOptions(programs);
   const student = await prisma.student.findUniqueOrThrow({
     where: { id: ensuredStudent.id },
     include: {
@@ -92,9 +89,9 @@ export default async function ProfilePage() {
     statuses: profile.statuses,
   };
   const profileOptions = {
-    classYears,
-    colleges,
-    opportunityTypes,
+    classYears: programOptions.classYears,
+    colleges: programOptions.colleges,
+    opportunityTypes: programOptions.opportunityTypes,
     statusSuggestions: [
       "F1RST+ Student",
       "Transfer Student",
@@ -112,7 +109,7 @@ export default async function ProfilePage() {
     student.hiddenPrograms.map((hidden) => hidden.program.slug),
   );
   const savedPrograms = programs.filter((program) => savedSlugs.has(program.slug));
-  const matches = rankedPrograms(profile)
+  const matches = rankedPrograms(profile, programs)
     .filter(({ program }) => !hiddenSlugs.has(program.slug))
     .slice(0, 2);
 

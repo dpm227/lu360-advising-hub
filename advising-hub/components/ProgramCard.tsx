@@ -53,6 +53,7 @@ export function ProgramCard({
           ))}
         </div>
         <ProgramActions
+          applicationUrl={program.applicationUrl}
           initialHidden={initialHidden}
           initialSaved={initialSaved}
           programSlug={program.slug}

@@ -40,7 +40,11 @@ export async function getPrisma() {
 
     globalForPrisma.lu360Prisma ??= new PrismaClient({ adapter });
     return globalForPrisma.lu360Prisma as OptionalPrisma;
-  } catch {
+  } catch (error) {
+    console.warn(
+      "[LU360_DATABASE_UNAVAILABLE] Prisma client could not be initialized.",
+      error,
+    );
     return null;
   }
 }

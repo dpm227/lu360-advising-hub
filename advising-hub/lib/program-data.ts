@@ -15,6 +15,7 @@ export type ProgramRecord = {
   financialAidAvailable: boolean;
   gpaMinimumRequired: boolean;
   gpaRequirement?: string;
+  applicationUrl?: string;
   periods: string[];
   colleges: string[];
   eligibleClassYears: string[];
@@ -120,6 +121,7 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": false,
     "gpaMinimumRequired": false,
+    "applicationUrl": "https://docs.google.com/forms/d/e/1FAIpQLSe1glA0I258_F-u6WcexOy0J-SQhAP4uQPQVy3zJj0WMfWqUg/viewform",
     "periods": [
       "Fall",
       "Spring"
@@ -192,6 +194,7 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": false,
     "gpaMinimumRequired": false,
+    "applicationUrl": "https://docs.google.com/document/d/1fi7Uio5PqzKvC-mYTdkEwreYnJkmket3/edit?usp=sharing&ouid=111036728375391020406&rtpof=true&sd=true",
     "periods": [
       "Fall",
       "Spring"
@@ -339,6 +342,8 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": false,
     "gpaMinimumRequired": true,
+    "gpaRequirement": "2.50",
+    "applicationUrl": "https://sites.google.com/lehigh.edu/gryphon-selection-process/gryphon-application",
     "periods": [
       "Fall",
       "Spring",
@@ -413,6 +418,7 @@ export const programs: ProgramRecord[] = [
     "financialAidAvailable": false,
     "gpaMinimumRequired": true,
     "gpaRequirement": "3.20",
+    "applicationUrl": "https://app.joinhandshake.com/emp/jobs/10208856",
     "periods": [
       "Fall",
       "Spring"
@@ -1218,6 +1224,7 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": true,
     "gpaMinimumRequired": true,
+    "gpaRequirement": "2.00",
     "periods": [
       "Summer",
       "Spring",
@@ -1356,6 +1363,8 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": false,
     "gpaMinimumRequired": true,
+    "gpaRequirement": "2.50",
+    "applicationUrl": "https://360.lehigh.edu/forms.gle/eEESiAsEUyi7Bbxs7",
     "periods": [
       "Fall",
       "Spring",
@@ -1404,6 +1413,8 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": false,
     "gpaMinimumRequired": true,
+    "gpaRequirement": "2.50",
+    "applicationUrl": "https://360.lehigh.edu/forms.gle/eEESiAsEUyi7Bbxs7",
     "periods": [
       "Fall",
       "Spring",
@@ -1521,6 +1532,7 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": false,
     "gpaMinimumRequired": false,
+    "applicationUrl": "https://lehigh.co1.qualtrics.com/jfe/form/SV_7TGZ85IXvmG3b5s",
     "periods": [
       "Summer"
     ],
@@ -1570,6 +1582,7 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": false,
     "gpaMinimumRequired": false,
+    "applicationUrl": "https://forms.gle/wqpdpX3eb9Srrk7PA",
     "periods": [
       "Summer"
     ],
@@ -1634,6 +1647,7 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": false,
     "gpaMinimumRequired": true,
+    "gpaRequirement": "3.40",
     "periods": [
       "Fall",
       "Spring",
@@ -1695,6 +1709,8 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": false,
     "gpaMinimumRequired": true,
+    "gpaRequirement": "3.20",
+    "applicationUrl": "https://docs.google.com/forms/d/e/1FAIpQLSfmhLEuL2Gxacquzl6WZW4eYTGuN3HLtwZhpLK42CWiaMvFMA/viewform",
     "periods": [
       "Fall",
       "Spring"
@@ -1754,6 +1770,7 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": false,
     "gpaMinimumRequired": true,
+    "gpaRequirement": "2.80",
     "periods": [
       "Fall",
       "Spring"
@@ -1808,6 +1825,7 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": true,
     "financialAidAvailable": false,
     "gpaMinimumRequired": true,
+    "gpaRequirement": "3.00",
     "periods": [
       "Fall",
       "Spring",
@@ -1868,6 +1886,8 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": true,
     "gpaMinimumRequired": true,
+    "gpaRequirement": "2.00",
+    "applicationUrl": "https://docs.google.com/forms/d/e/1FAIpQLSdHeBj87Xr_HBjh5mGgq9tKHtQOZMUrTLDZ1-0KxXGVPEn4CA/viewform",
     "periods": [
       "Summer"
     ],
@@ -1985,6 +2005,8 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": false,
     "gpaMinimumRequired": true,
+    "gpaRequirement": "3.20",
+    "applicationUrl": "https://lehigh.co1.qualtrics.com/jfe/form/SV_dhiQ1jozmLzNtOu",
     "periods": [
       "Fall",
       "Spring",
@@ -2046,6 +2068,7 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": false,
     "gpaMinimumRequired": true,
+    "gpaRequirement": "3.20",
     "periods": [
       "Fall",
       "Spring"
@@ -2179,6 +2202,7 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": false,
     "gpaMinimumRequired": true,
+    "gpaRequirement": "3.20",
     "periods": [
       "Fall",
       "Spring"
@@ -2238,6 +2262,7 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": false,
     "gpaMinimumRequired": true,
+    "gpaRequirement": "2.00",
     "periods": [
       "Fall",
       "Spring"
@@ -2369,6 +2394,7 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": false,
     "gpaMinimumRequired": true,
+    "gpaRequirement": "2.00",
     "periods": [
       "Fall",
       "Spring",
@@ -2766,6 +2792,7 @@ export const programs: ProgramRecord[] = [
     "workStudyOffered": false,
     "financialAidAvailable": false,
     "gpaMinimumRequired": true,
+    "gpaRequirement": "2.00",
     "periods": [
       "Fall",
       "Spring",

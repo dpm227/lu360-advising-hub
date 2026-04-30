@@ -153,6 +153,7 @@ model Program {
   financialAidAvailable Boolean                        @default(false)
   gpaMinimumRequired    Boolean                        @default(false)
   gpaRequirement        String?
+  applicationUrl        String?
   periods               String[]
   fundingTypes          String[]
   keywords              String[]

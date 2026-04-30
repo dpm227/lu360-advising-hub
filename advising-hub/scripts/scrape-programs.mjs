@@ -116,6 +116,38 @@ function extractFieldText(html, className) {
   return extractFieldItems(html, className)[0] ?? "";
 }
 
+function extractFieldTextByLabel(html, label) {
+  const fieldBlocks = html.match(/<div class="field[\s\S]*?(?=<div class="field|<\/main>|<\/article>|$)/gi) ?? [];
+  const labelPattern = new RegExp(`field__label[^>]*>\\s*${label}\\s*<`, "i");
+  const block = fieldBlocks.find((fieldBlock) => labelPattern.test(fieldBlock));
+
+  if (!block) {
+    return "";
+  }
+
+  return [...block.matchAll(/<div class="field__item">([\s\S]*?)<\/div>/gi)]
+    .map((match) => stripTags(match[1]))
+    .find(Boolean) ?? "";
+}
+
+function extractFieldLinkFromBlock(block) {
+  const href = block.match(/<a[^>]+href="([^"]+)"/i)?.[1] ?? "";
+
+  return absoluteUrl(decodeHtml(href)) || undefined;
+}
+
+function extractFieldLink(html, className) {
+  return extractFieldLinkFromBlock(extractFieldBlock(html, className));
+}
+
+function extractFieldLinkByLabel(html, label) {
+  const fieldBlocks = html.match(/<div class="field[\s\S]*?(?=<div class="field|<\/main>|<\/article>|$)/gi) ?? [];
+  const labelPattern = new RegExp(`field__label[^>]*>\\s*${label}\\s*<`, "i");
+  const block = fieldBlocks.find((fieldBlock) => labelPattern.test(fieldBlock));
+
+  return block ? extractFieldLinkFromBlock(block) : undefined;
+}
+
 function extractDateField(html, className) {
   const block = extractFieldBlock(html, className);
   return isoDateFromHtml(block);
@@ -147,12 +179,36 @@ function extractPhotos(html) {
   };
 }
 
-async function fetchText(url) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status}`);
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchText(url, attempts = 3) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${url}: ${response.status}`);
+      }
+
+      return response.text();
+    } catch (error) {
+      lastError = error;
+
+      if (attempt < attempts) {
+        const delay = attempt * 1000;
+        console.warn(
+          `[scrape] Fetch failed for ${url}. Retrying in ${delay}ms (${attempt}/${attempts})`,
+        );
+        await sleep(delay);
+      }
+    }
   }
-  return response.text();
+
+  throw lastError;
 }
 
 function findProgramLinks(html) {
@@ -200,7 +256,14 @@ async function scrapeProgram(link, index) {
     financialAidAvailable: extractFieldText(html, "field--name-field-ci-finaid") === "Yes",
     gpaMinimumRequired:
       extractFieldText(html, "field--name-field-ci-gpa-required") === "Yes",
-    gpaRequirement: extractFieldText(html, "field--name-field-ci-gpa-requirement") || undefined,
+    gpaRequirement:
+      extractFieldText(html, "field--name-field-ci-gpa-min") ||
+      extractFieldText(html, "field--name-field-ci-gpa-requirement") ||
+      extractFieldTextByLabel(html, "GPA Requirement") ||
+      undefined,
+    applicationUrl:
+      extractFieldLink(html, "field--name-field-ci-application-link") ||
+      extractFieldLinkByLabel(html, "Application Link"),
     periods: extractFieldItems(html, "field--name-field-ci-period"),
     colleges: extractFieldItems(html, "field--name-field-ci-college"),
     eligibleClassYears: extractFieldItems(html, "field--name-field-ci-eligibility"),
@@ -237,6 +300,7 @@ function renderTs(programs) {
   financialAidAvailable: boolean;
   gpaMinimumRequired: boolean;
   gpaRequirement?: string;
+  applicationUrl?: string;
   periods: string[];
   colleges: string[];
   eligibleClassYears: string[];

@@ -49,6 +49,7 @@ async function findOrCreateProgram(slug: string, organizationId: string) {
       financialAidAvailable: localProgram.financialAidAvailable,
       gpaMinimumRequired: localProgram.gpaMinimumRequired,
       gpaRequirement: localProgram.gpaRequirement,
+      applicationUrl: localProgram.applicationUrl,
       periods: localProgram.periods,
       fundingTypes: localProgram.fundingTypes,
       keywords: localProgram.keywords,

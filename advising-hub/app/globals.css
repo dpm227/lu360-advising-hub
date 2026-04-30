@@ -678,6 +678,9 @@ select {
 
 .program-action {
   min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--outline-variant);
   border-radius: 999px;
   padding: 0 12px;
@@ -688,8 +691,18 @@ select {
   cursor: pointer;
 }
 
+.program-action-link {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: white;
+}
+
 .program-action:hover {
   background: var(--primary-container);
+}
+
+.program-action-link:hover {
+  background: color-mix(in srgb, var(--primary), black 12%);
 }
 
 .program-action.active {

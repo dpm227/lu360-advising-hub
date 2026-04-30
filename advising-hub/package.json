@@ -13,6 +13,7 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.mjs",
+    "sync:programs": "node scripts/sync-programs.mjs",
     "scrape:programs": "node scripts/scrape-programs.mjs"
   },
   "dependencies": {

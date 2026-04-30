@@ -1,43 +1,14 @@
 import { programs, type ProgramRecord } from "@/lib/program-data";
-import { getPrisma } from "@/lib/prisma";
 import { prisma as db } from "@/lib/prisma-client";
 import { rankedPrograms, type StudentProfile } from "@/lib/recommendations";
 import { authOptions } from "@/lib/auth";
+import { getProgramRecords } from "@/lib/program-records";
 import { ensureStudentForUser } from "@/lib/student-profile";
 import { getServerSession } from "next-auth";
 
 type ChatRequest = {
   message?: string;
   threadId?: string | null;
-};
-
-type DbProgram = {
-  id: string;
-  title: string;
-  slug: string;
-  sourceUrl: string;
-  website?: string | null;
-  contact?: string | null;
-  descriptionText: string;
-  timeline?: string | null;
-  durationLabel?: string | null;
-  deadlineDate?: Date | string | null;
-  creditAvailable: boolean;
-  workStudyOffered: boolean;
-  financialAidAvailable: boolean;
-  gpaMinimumRequired: boolean;
-  gpaRequirement?: string | null;
-  periods: string[];
-  fundingTypes: string[];
-  keywords: string[];
-  colleges?: Array<{ college?: { name?: string } }>;
-  eligibleClassYears?: Array<{ classYear?: { name?: string } }>;
-  opportunityTypes?: Array<{ opportunityType?: { name?: string } }>;
-  sdgTags?: Array<{ sdgTag?: { name?: string } }>;
-  requirements?: Array<{
-    requirementType: string;
-    requirementValue: string;
-  }>;
 };
 
 type ChatProgramContext = {
@@ -55,6 +26,7 @@ type ChatProgramContext = {
   financialAidAvailable: boolean;
   gpaMinimumRequired: boolean;
   gpaRequirement?: string;
+  applicationUrl?: string;
   periods: string[];
   eligibleClassYears: string[];
   colleges: string[];
@@ -62,10 +34,6 @@ type ChatProgramContext = {
   fundingTypes: string[];
   sdgTags: string[];
   keywords: string[];
-  requirements?: Array<{
-    type: string;
-    value: string;
-  }>;
 };
 
 type ChatStudent = {
@@ -117,18 +85,6 @@ Response rules:
 - Keep answers student-friendly, concise, and useful.
 - If data is missing, say what is missing and suggest checking the Lehigh360 site.`;
 
-function dateToIsoDate(value: Date | string | null | undefined) {
-  if (!value) {
-    return undefined;
-  }
-
-  if (value instanceof Date) {
-    return value.toISOString().slice(0, 10);
-  }
-
-  return value.slice(0, 10);
-}
-
 function localProgramToContext(program: ProgramRecord): ChatProgramContext {
   return {
     title: program.title,
@@ -145,6 +101,7 @@ function localProgramToContext(program: ProgramRecord): ChatProgramContext {
     financialAidAvailable: program.financialAidAvailable,
     gpaMinimumRequired: program.gpaMinimumRequired,
     gpaRequirement: program.gpaRequirement,
+    applicationUrl: program.applicationUrl,
     periods: program.periods,
     eligibleClassYears: program.eligibleClassYears,
     colleges: program.colleges,
@@ -152,48 +109,6 @@ function localProgramToContext(program: ProgramRecord): ChatProgramContext {
     fundingTypes: program.fundingTypes,
     sdgTags: program.sdgTags,
     keywords: program.keywords,
-  };
-}
-
-function dbProgramToContext(program: DbProgram): ChatProgramContext {
-  return {
-    title: program.title,
-    slug: program.slug,
-    url: program.sourceUrl,
-    website: program.website ?? undefined,
-    contact: program.contact ?? undefined,
-    description: program.descriptionText,
-    timeline: program.timeline ?? undefined,
-    duration: program.durationLabel ?? undefined,
-    deadline: dateToIsoDate(program.deadlineDate),
-    creditAvailable: program.creditAvailable,
-    workStudyOffered: program.workStudyOffered,
-    financialAidAvailable: program.financialAidAvailable,
-    gpaMinimumRequired: program.gpaMinimumRequired,
-    gpaRequirement: program.gpaRequirement ?? undefined,
-    periods: program.periods,
-    eligibleClassYears:
-      program.eligibleClassYears
-        ?.map((entry) => entry.classYear?.name)
-        .filter((name): name is string => Boolean(name)) ?? [],
-    colleges:
-      program.colleges
-        ?.map((entry) => entry.college?.name)
-        .filter((name): name is string => Boolean(name)) ?? [],
-    opportunityTypes:
-      program.opportunityTypes
-        ?.map((entry) => entry.opportunityType?.name)
-        .filter((name): name is string => Boolean(name)) ?? [],
-    fundingTypes: program.fundingTypes,
-    sdgTags:
-      program.sdgTags
-        ?.map((entry) => entry.sdgTag?.name)
-        .filter((name): name is string => Boolean(name)) ?? [],
-    keywords: program.keywords,
-    requirements: program.requirements?.map((requirement) => ({
-      type: requirement.requirementType,
-      value: requirement.requirementValue,
-    })),
   };
 }
 
@@ -242,39 +157,6 @@ async function getSessionStudent() {
   });
 }
 
-async function getProgramContext() {
-  const prisma = await getPrisma();
-
-  if (prisma) {
-    try {
-      const dbPrograms = (await prisma.program.findMany({
-        orderBy: [{ featured: "desc" }, { title: "asc" }],
-        include: {
-          eligibleClassYears: { include: { classYear: true } },
-          colleges: { include: { college: true } },
-          opportunityTypes: { include: { opportunityType: true } },
-          sdgTags: { include: { sdgTag: true } },
-          requirements: true,
-        },
-      })) as DbProgram[];
-
-      if (dbPrograms.length > 0) {
-        return {
-          source: "database" as const,
-          programs: dbPrograms.map(dbProgramToContext),
-        };
-      }
-    } catch {
-      // Fall through to generated data file when the database is unavailable.
-    }
-  }
-
-  return {
-    source: "generated-file" as const,
-    programs: programs.map(localProgramToContext),
-  };
-}
-
 function hasPersonalProfile(profile: StudentProfile) {
   return Boolean(
     profile.email ||
@@ -290,14 +172,15 @@ function hasPersonalProfile(profile: StudentProfile) {
 function localAdvisorResponse(
   message: string,
   profile: StudentProfile = generalStudentProfile,
+  catalog: ProgramRecord[] = programs,
 ) {
   const lowered = message.toLowerCase();
-  const ranked = rankedPrograms(profile);
+  const ranked = rankedPrograms(profile, catalog);
   const mentionedProgram =
-    programs.find((program) => lowered.includes(program.title.toLowerCase())) ??
-    programs.find((program) => lowered.includes(program.slug.replaceAll("-", " "))) ??
+    catalog.find((program) => lowered.includes(program.title.toLowerCase())) ??
+    catalog.find((program) => lowered.includes(program.slug.replaceAll("-", " "))) ??
     (lowered.includes("marcon")
-      ? programs.find((program) => program.slug === "marcon-fellows")
+      ? catalog.find((program) => program.slug === "marcon-fellows")
       : undefined);
   const target = mentionedProgram ?? ranked[0].program;
 
@@ -440,10 +323,11 @@ export async function POST(request: Request) {
     chatThreadId = body.threadId ?? null;
   }
 
-  const { programs: programCatalog } = await getProgramContext();
+  const { programs: programRecords } = await getProgramRecords("chat API");
+  const programCatalog = programRecords.map(localProgramToContext);
   const aiResponse =
     (await askOpenAI(message, programCatalog, profile)) ??
-    localAdvisorResponse(message, profile);
+    localAdvisorResponse(message, profile, programRecords);
 
   try {
     if (chatThreadId) {

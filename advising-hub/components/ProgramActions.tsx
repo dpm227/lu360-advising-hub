@@ -5,6 +5,7 @@ import { useState } from "react";
 
 type ProgramActionsProps = {
   programSlug: string;
+  applicationUrl?: string;
   initialSaved?: boolean;
   initialHidden?: boolean;
 };
@@ -13,6 +14,7 @@ type ProgramAction = "save" | "unsave" | "hide" | "unhide";
 
 export function ProgramActions({
   programSlug,
+  applicationUrl,
   initialSaved = false,
   initialHidden = false,
 }: ProgramActionsProps) {
@@ -65,6 +67,16 @@ export function ProgramActions({
       >
         {saved ? "Saved" : "Save"}
       </button>
+      {applicationUrl ? (
+        <a
+          className="program-action program-action-link"
+          href={applicationUrl}
+          rel="noreferrer"
+          target="_blank"
+        >
+          Apply
+        </a>
+      ) : null}
       <button
         className={hidden ? "program-action muted active" : "program-action muted"}
         disabled={isBusy}

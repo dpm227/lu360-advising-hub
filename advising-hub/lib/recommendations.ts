@@ -72,9 +72,8 @@ export function scoreProgram(program: ProgramRecord, profile = demoProfile) {
   };
 }
 
-export function rankedPrograms(profile = demoProfile) {
-  return programs
+export function rankedPrograms(profile = demoProfile, catalog = programs) {
+  return catalog
     .map((program) => scoreProgram(program, profile))
     .sort((first, second) => second.score - first.score);
 }
-

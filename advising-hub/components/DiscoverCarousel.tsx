@@ -121,7 +121,10 @@ export function DiscoverCarousel({ programs }: DiscoverCarouselProps) {
               <h2>{selectedProgram.title}</h2>
             </div>
             <div className="selected-program-links">
-              <ProgramActions programSlug={selectedProgram.slug} />
+              <ProgramActions
+                applicationUrl={selectedProgram.applicationUrl}
+                programSlug={selectedProgram.slug}
+              />
               <a href={selectedProgram.sourceUrl} target="_blank" rel="noreferrer">
                 View source
               </a>
@@ -152,7 +155,7 @@ export function DiscoverCarousel({ programs }: DiscoverCarouselProps) {
               <dd>{selectedProgram.creditAvailable ? "Yes" : "No"}</dd>
             </div>
             <div>
-              <dt>GPA</dt>
+              <dt>GPA Requirement</dt>
               <dd>
                 {selectedProgram.gpaMinimumRequired
                   ? selectedProgram.gpaRequirement || "Required, not listed"
