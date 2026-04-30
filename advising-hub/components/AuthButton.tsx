@@ -12,12 +12,6 @@ export function AuthButton() {
   if (session?.user) {
     return (
       <div className="auth-user">
-        {session.user.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={session.user.image} alt="" />
-        ) : (
-          <span className="auth-avatar">{session.user.name?.slice(0, 1) ?? "U"}</span>
-        )}
         <button type="button" onClick={() => void signOut()}>
           Sign out
         </button>
@@ -35,4 +29,3 @@ export function AuthButton() {
     </button>
   );
 }
-

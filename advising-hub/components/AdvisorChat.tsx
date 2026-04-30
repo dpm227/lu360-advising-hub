@@ -139,7 +139,7 @@ export function AdvisorChat({ context }: AdvisorChatProps) {
             <h1>Advisor Chat</h1>
           </div>
           <p className="eyebrow">
-            {context.isSignedIn ? "Profile context loaded" : "Demo context loaded"}
+            {context.isSignedIn ? "Profile context loaded" : "Program context loaded"}
           </p>
           <h2>Programs, profile, requirements</h2>
           <p>{context.summary}</p>

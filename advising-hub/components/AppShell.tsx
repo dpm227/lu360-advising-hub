@@ -1,6 +1,7 @@
 import type { ReactNode, SVGProps } from "react";
 import Link from "next/link";
 import { AuthButton } from "@/components/AuthButton";
+import { ProfileNavIcon } from "@/components/ProfileNavIcon";
 
 type AppShellProps = {
   active: "discover" | "chat" | "profile";
@@ -56,13 +57,7 @@ function NavIcon({ type }: { type: (typeof navItems)[number]["icon"] }) {
     );
   }
 
-  return (
-    <NavIconBase {...iconProps}>
-      <path d="M18 20a6 6 0 0 0-12 0" />
-      <circle cx="12" cy="10" r="4" />
-      <circle cx="12" cy="12" r="10" />
-    </NavIconBase>
-  );
+  return <ProfileNavIcon />;
 }
 
 export function AppShell({
@@ -71,15 +66,15 @@ export function AppShell({
   hidePageHeader = false,
   children,
 }: AppShellProps) {
+  const activeItem =
+    navItems.find((item) => item.id === active) ?? navItems[0];
+
   return (
     <main className="site-shell">
       <nav className="site-navbar" aria-label="Primary navigation">
         <Link className="site-brand" href="/">
-          <span className="brand-mark" aria-hidden="true">
-            LU
-          </span>
           <span>
-            <strong>LU360</strong>
+            <strong>Lehigh 360</strong>
             <small>Advising Hub</small>
           </span>
         </Link>
@@ -97,6 +92,46 @@ export function AppShell({
           ))}
           <AuthButton />
         </div>
+
+        <details className="mobile-nav-selector">
+          <summary>
+            <span className="mobile-nav-current">
+              <NavIcon type={activeItem.icon} />
+              <span>{activeItem.label}</span>
+            </span>
+            <svg
+              aria-hidden="true"
+              className="mobile-nav-chevron"
+              fill="none"
+              height="18"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+              width="18"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </summary>
+          <div className="mobile-nav-menu">
+            {navItems.map((item) => (
+              <Link
+                className={`mobile-nav-option ${
+                  active === item.id ? "active" : ""
+                }`}
+                href={item.href}
+                key={item.id}
+              >
+                <NavIcon type={item.icon} />
+                <span>{item.label}</span>
+              </Link>
+            ))}
+            <div className="mobile-nav-auth">
+              <AuthButton />
+            </div>
+          </div>
+        </details>
       </nav>
 
       <section className="app-surface" aria-label={title}>

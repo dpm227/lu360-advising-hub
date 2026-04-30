@@ -1,11 +1,7 @@
 import { programs, type ProgramRecord } from "@/lib/program-data";
 import { getPrisma } from "@/lib/prisma";
 import { prisma as db } from "@/lib/prisma-client";
-import {
-  demoProfile,
-  rankedPrograms,
-  type StudentProfile,
-} from "@/lib/recommendations";
+import { rankedPrograms, type StudentProfile } from "@/lib/recommendations";
 import { authOptions } from "@/lib/auth";
 import { ensureStudentForUser } from "@/lib/student-profile";
 import { getServerSession } from "next-auth";
@@ -84,6 +80,18 @@ type ChatStudent = {
   opportunityInterests: Array<{ opportunityType: { name: string } }>;
   keywords: Array<{ keyword: string }>;
   statuses: Array<{ statusName: string }>;
+};
+
+const generalStudentProfile: StudentProfile = {
+  name: "Student",
+  email: "",
+  classYear: "",
+  college: "",
+  major: "",
+  needsFunding: false,
+  interests: [],
+  keywords: [],
+  statuses: [],
 };
 
 const SYSTEM_PROMPT = `You are the Lehigh360 AI assistant.
@@ -191,7 +199,7 @@ function dbProgramToContext(program: DbProgram): ChatProgramContext {
 
 function studentToProfile(student: ChatStudent | null): StudentProfile {
   if (!student) {
-    return demoProfile;
+    return generalStudentProfile;
   }
 
   const name = [student.firstName, student.lastName].filter(Boolean).join(" ");
@@ -267,7 +275,22 @@ async function getProgramContext() {
   };
 }
 
-function localAdvisorResponse(message: string, profile: StudentProfile = demoProfile) {
+function hasPersonalProfile(profile: StudentProfile) {
+  return Boolean(
+    profile.email ||
+      profile.classYear ||
+      profile.college ||
+      profile.major ||
+      profile.interests.length > 0 ||
+      profile.keywords.length > 0 ||
+      profile.statuses.length > 0,
+  );
+}
+
+function localAdvisorResponse(
+  message: string,
+  profile: StudentProfile = generalStudentProfile,
+) {
   const lowered = message.toLowerCase();
   const ranked = rankedPrograms(profile);
   const mentionedProgram =
@@ -279,14 +302,13 @@ function localAdvisorResponse(message: string, profile: StudentProfile = demoPro
   const target = mentionedProgram ?? ranked[0].program;
 
   const match = ranked.find((item) => item.program.id === target.id);
-  const reasons = match?.reasons.slice(0, 3).join("; ");
+  const hasProfile = hasPersonalProfile(profile);
+  const reasons = hasProfile ? match?.reasons.slice(0, 3).join("; ") : "";
   const deadline = target.deadline ? ` The listed deadline is ${target.deadline}.` : "";
 
   return `## ${target.title}
 
-This program has a **${match?.score ?? 70}% profile match** for ${
-    profile.name
-  }.
+${hasProfile ? `This program has a **${match?.score ?? 70}% profile match** for ${profile.name}.` : "Here are the current program details. Share your class year, college, interests, and funding needs if you want a more personal fit check."}
 
 - **Eligibility:** ${target.eligibleClassYears.join(", ") || "Not listed"}
 - **Period:** ${target.periods.join(
@@ -313,6 +335,10 @@ async function askOpenAI(
   }
 
   try {
+    const profileContext = hasPersonalProfile(profile)
+      ? JSON.stringify(profile, null, 2)
+      : "No saved student profile is available for this conversation yet. Do not invent profile details; ask the student for class year, college, major, interests, goals, funding needs, or availability when those details matter.";
+
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
@@ -329,7 +355,7 @@ async function askOpenAI(
           {
             role: "user",
             content: `Current student profile, if known:
-${JSON.stringify(profile, null, 2)}
+${profileContext}
 
 Current Lehigh360 program catalog:
 ${JSON.stringify(catalog, null, 2)}

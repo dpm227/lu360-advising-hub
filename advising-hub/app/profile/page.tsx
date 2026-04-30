@@ -122,7 +122,17 @@ export default async function ProfilePage() {
         <div className="profile-panel">
           <div className="profile-header">
             <div className="profile-header-main">
-              <div className="profile-avatar">{initialsFor(name)}</div>
+              {session.user.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  alt=""
+                  className="profile-avatar profile-avatar-image"
+                  referrerPolicy="no-referrer"
+                  src={session.user.image}
+                />
+              ) : (
+                <div className="profile-avatar">{initialsFor(name)}</div>
+              )}
               <div>
                 <p className="eyebrow">Student profile</p>
                 <h2>{name}</h2>

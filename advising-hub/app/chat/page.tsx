@@ -2,8 +2,20 @@ import { getServerSession } from "next-auth";
 import { AdvisorChat, type ChatPageContext } from "@/components/AdvisorChat";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma-client";
-import { demoProfile, type StudentProfile } from "@/lib/recommendations";
+import type { StudentProfile } from "@/lib/recommendations";
 import { ensureStudentForUser } from "@/lib/student-profile";
+
+const generalStudentProfile: StudentProfile = {
+  name: "Student",
+  email: "",
+  classYear: "",
+  college: "",
+  major: "",
+  needsFunding: false,
+  interests: [],
+  keywords: [],
+  statuses: [],
+};
 
 function profileSummary(profile: StudentProfile, isSignedIn: boolean) {
   if (!isSignedIn) {
@@ -36,7 +48,7 @@ async function getChatContext() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id || !session.user.email) {
-    return buildChatContext(demoProfile, false);
+    return buildChatContext(generalStudentProfile, false);
   }
 
   const ensuredStudent = await ensureStudentForUser({
