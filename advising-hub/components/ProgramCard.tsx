@@ -53,6 +53,7 @@ export function ProgramCard({
         <ProgramActions
           applicationUrl={program.applicationUrl}
           initialSaved={initialSaved}
+          programName={program.title}
           programSlug={program.slug}
           sourceUrl={program.sourceUrl}
         />

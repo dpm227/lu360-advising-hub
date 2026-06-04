@@ -1,9 +1,11 @@
 "use client";
 
 import { signIn, useSession } from "next-auth/react";
+import Link from "next/link";
 import { useState } from "react";
 
 type ProgramActionsProps = {
+  programName: string;
   programSlug: string;
   applicationUrl?: string;
   sourceUrl: string;
@@ -13,6 +15,7 @@ type ProgramActionsProps = {
 type ProgramAction = "save" | "unsave";
 
 export function ProgramActions({
+  programName,
   programSlug,
   applicationUrl,
   sourceUrl,
@@ -74,6 +77,12 @@ export function ProgramActions({
           Apply
         </a>
       ) : null}
+      <Link
+        className="program-action program-action-link"
+        href={`/chat?prompt=${encodeURIComponent(`Please give me an overview of ${programName}, including eligibility, funding, deadlines, and how well it may fit my profile.`)}&autoSend=1`}
+      >
+        Chat
+      </Link>
       <a
         className="program-action program-action-link"
         href={sourceUrl}

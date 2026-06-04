@@ -86,8 +86,21 @@ async function getChatContext() {
   return buildChatContext(profile, true);
 }
 
-export default async function ChatPage() {
-  const context = await getChatContext();
+type ChatPageProps = {
+  searchParams?: Promise<{ autoSend?: string; prompt?: string }>;
+};
 
-  return <AdvisorChat context={context} />;
+export default async function ChatPage({ searchParams }: ChatPageProps) {
+  const context = await getChatContext();
+  const params = await searchParams;
+  const initialPrompt = params?.prompt?.trim() ?? "";
+  const autoSendInitialPrompt = params?.autoSend === "1";
+
+  return (
+    <AdvisorChat
+      autoSendInitialPrompt={autoSendInitialPrompt}
+      context={context}
+      initialPrompt={initialPrompt}
+    />
+  );
 }

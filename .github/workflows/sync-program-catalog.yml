@@ -1,0 +1,57 @@
+name: Sync program catalog
+
+on:
+  schedule:
+    # Twice weekly: Mondays and Thursdays at 09:17 UTC.
+    - cron: "17 9 * * 1,4"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-program-catalog
+  cancel-in-progress: false
+
+jobs:
+  scrape-and-sync:
+    name: Scrape programs and sync Supabase
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: advising-hub
+
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: advising-hub/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check database secret
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL GitHub Actions secret is required."
+            exit 1
+          fi
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Scrape program catalog
+        run: npm run scrape:programs
+
+      - name: Sync program catalog to Supabase
+        run: npm run sync:programs

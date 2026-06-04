@@ -1,6 +1,13 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { AppShell } from "@/components/AppShell";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
 import { programs } from "@/lib/program-data";
@@ -19,6 +26,8 @@ export type ChatPageContext = {
 
 type AdvisorChatProps = {
   context: ChatPageContext;
+  initialPrompt?: string;
+  autoSendInitialPrompt?: boolean;
 };
 
 function createStarterMessages(context: ChatPageContext): Message[] {
@@ -58,13 +67,18 @@ function fallbackReply(input: string) {
     .toLowerCase()} first.`;
 }
 
-export function AdvisorChat({ context }: AdvisorChatProps) {
+export function AdvisorChat({
+  context,
+  initialPrompt = "",
+  autoSendInitialPrompt = false,
+}: AdvisorChatProps) {
   const [messages, setMessages] = useState<Message[]>(() =>
     createStarterMessages(context),
   );
   const [threadId, setThreadId] = useState<string | null>(null);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(initialPrompt);
   const [isSending, setIsSending] = useState(false);
+  const didAutoSendRef = useRef(false);
 
   const quickPrompts = useMemo(
     () => [
@@ -75,7 +89,7 @@ export function AdvisorChat({ context }: AdvisorChatProps) {
     [],
   );
 
-  async function sendMessage(message: string) {
+  const sendMessage = useCallback(async (message: string) => {
     const trimmed = message.trim();
     if (!trimmed || isSending) {
       return;
@@ -123,12 +137,21 @@ export function AdvisorChat({ context }: AdvisorChatProps) {
     } finally {
       setIsSending(false);
     }
-  }
+  }, [isSending, threadId]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void sendMessage(input);
   }
+
+  useEffect(() => {
+    if (!autoSendInitialPrompt || didAutoSendRef.current || !initialPrompt.trim()) {
+      return;
+    }
+
+    didAutoSendRef.current = true;
+    void sendMessage(initialPrompt);
+  }, [autoSendInitialPrompt, initialPrompt, sendMessage]);
 
   return (
     <AppShell active="chat" title="Advisor Chat" hidePageHeader>

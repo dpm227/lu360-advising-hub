@@ -123,6 +123,7 @@ export function DiscoverCarousel({ programs }: DiscoverCarouselProps) {
             <div className="selected-program-links">
               <ProgramActions
                 applicationUrl={selectedProgram.applicationUrl}
+                programName={selectedProgram.title}
                 programSlug={selectedProgram.slug}
                 sourceUrl={selectedProgram.sourceUrl}
               />
