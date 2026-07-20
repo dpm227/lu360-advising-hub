@@ -338,8 +338,8 @@ async function main() {
   const indexHtml = await fetchText(INDEX_URL);
   const links = findProgramLinks(indexHtml);
 
-  if (links.length !== 45) {
-    throw new Error(`Expected 45 programs, found ${links.length}`);
+  if (links.length === 0) {
+    throw new Error("Expected at least one program, found 0");
   }
 
   const programs = [];

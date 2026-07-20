@@ -85,11 +85,16 @@ async function syncProgramRelations(programId, organizationId, program) {
 }
 
 async function syncPrograms() {
+  if (programs.length === 0) {
+    throw new Error("Expected at least one program to sync, found 0.");
+  }
+
   console.info(
     `[LU360_PROGRAM_SYNC] Syncing ${programs.length} programs from lib/program-data.ts to the database.`,
   );
 
   const organization = await getOrCreateOrganization();
+  const activeSlugs = programs.map((program) => program.slug);
   let syncedCount = 0;
 
   for (const program of programs) {
@@ -152,8 +157,17 @@ async function syncPrograms() {
     syncedCount += 1;
   }
 
+  const deactivatedPrograms = await prisma.program.updateMany({
+    where: {
+      organizationId: organization.id,
+      slug: { notIn: activeSlugs },
+      isActive: true,
+    },
+    data: { isActive: false },
+  });
+
   console.info(
-    `[LU360_PROGRAM_SYNC] Synced ${syncedCount} programs to the database.`,
+    `[LU360_PROGRAM_SYNC] Synced ${syncedCount} programs to the database and deactivated ${deactivatedPrograms.count} missing programs.`,
   );
 }
 
