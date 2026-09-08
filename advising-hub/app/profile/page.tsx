@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { AppShell } from "@/components/AppShell";
 import { ProgramCard } from "@/components/ProgramCard";
@@ -7,7 +8,6 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma-client";
 import { getProgramOptions, getProgramRecords } from "@/lib/program-records";
 import { rankedPrograms, type StudentProfile } from "@/lib/recommendations";
-import { ensureStudentForUser } from "@/lib/student-profile";
 
 function initialsFor(name: string) {
   return (
@@ -41,15 +41,8 @@ export default async function ProfilePage() {
     );
   }
 
-  const ensuredStudent = await ensureStudentForUser({
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name ?? null,
-  });
-  const { programs } = await getProgramRecords("profile page");
-  const programOptions = getProgramOptions(programs);
-  const student = await prisma.student.findUniqueOrThrow({
-    where: { id: ensuredStudent.id },
+  const student = await prisma.student.findUnique({
+    where: { userId: session.user.id },
     include: {
       opportunityInterests: { include: { opportunityType: true } },
       keywords: true,
@@ -59,6 +52,12 @@ export default async function ProfilePage() {
     },
   });
 
+  if (!student) {
+    redirect("/signin");
+  }
+
+  const { programs } = await getProgramRecords("profile page");
+  const programOptions = getProgramOptions(programs);
   const name =
     [student.firstName, student.lastName].filter(Boolean).join(" ") ||
     session.user.name ||

@@ -2,7 +2,6 @@ import { getServerSession } from "next-auth";
 import { programs } from "@/lib/program-data";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma-client";
-import { ensureStudentForUser } from "@/lib/student-profile";
 
 type InteractionRequest = {
   action?: "save" | "unsave" | "hide" | "unhide";
@@ -93,11 +92,17 @@ const action = body.action;
     return Response.json({ error: "Action is required." }, { status: 400 });
   }
 
-  const student = await ensureStudentForUser({
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name ?? null,
+  const student = await prisma.student.findUnique({
+    where: { userId: session.user.id },
+    select: { id: true, organizationId: true },
   });
+
+  if (!student) {
+    return Response.json(
+      { error: "Sign in again to set up your student profile." },
+      { status: 409 },
+    );
+  }
   const program = await findOrCreateProgram(slug, student.organizationId);
 
   if (!program) {

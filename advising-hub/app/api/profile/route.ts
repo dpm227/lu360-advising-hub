@@ -2,7 +2,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { classYears, colleges, opportunityTypes } from "@/lib/program-data";
 import { prisma } from "@/lib/prisma-client";
-import { ensureStudentForUser } from "@/lib/student-profile";
 
 type ProfileRequest = {
   firstName?: string;
@@ -68,7 +67,7 @@ function profileNeedsSetup(student: {
   );
 }
 
-function profileResponse(student: Awaited<ReturnType<typeof getStudent>>) {
+function profileResponse(student: NonNullable<Awaited<ReturnType<typeof getStudent>>>) {
   return {
     profile: {
       firstName: student.firstName ?? "",
@@ -101,18 +100,12 @@ async function getSessionStudent() {
     return null;
   }
 
-  const ensuredStudent = await ensureStudentForUser({
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name ?? null,
-  });
-
-  return getStudent(ensuredStudent.id);
+  return getStudent(session.user.id);
 }
 
-async function getStudent(id: string) {
-  return prisma.student.findUniqueOrThrow({
-    where: { id },
+async function getStudent(userId: string) {
+  return prisma.student.findUnique({
+    where: { userId },
     include: {
       opportunityInterests: { include: { opportunityType: true } },
       keywords: true,
@@ -125,7 +118,10 @@ export async function GET() {
   const student = await getSessionStudent();
 
   if (!student) {
-    return Response.json({ error: "Sign in is required." }, { status: 401 });
+    return Response.json(
+      { error: "Sign in again to load your student profile." },
+      { status: 401 },
+    );
   }
 
   return Response.json(profileResponse(student));
@@ -138,11 +134,17 @@ export async function PUT(request: Request) {
     return Response.json({ error: "Sign in is required." }, { status: 401 });
   }
 
-  const student = await ensureStudentForUser({
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name ?? null,
+  const student = await prisma.student.findUnique({
+    where: { userId: session.user.id },
+    select: { id: true },
   });
+
+  if (!student) {
+    return Response.json(
+      { error: "Sign in again to set up your student profile." },
+      { status: 409 },
+    );
+  }
   const body = (await request.json()) as ProfileRequest;
   const interests = cleanList(body.interests).filter((interest) =>
     opportunityTypes.includes(interest),

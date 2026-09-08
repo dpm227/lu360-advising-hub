@@ -9,7 +9,6 @@ import {
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma-client";
 import { getProgramRecords } from "@/lib/program-records";
-import { ensureStudentForUser } from "@/lib/student-profile";
 import { getServerSession } from "next-auth";
 
 async function getStudentProgramLists() {
@@ -25,13 +24,8 @@ async function getStudentProgramLists() {
   }
 
   try {
-    const ensuredStudent = await ensureStudentForUser({
-      id: session.user.id,
-      email: session.user.email,
-      name: session.user.name ?? null,
-    });
     const student = await prisma.student.findUniqueOrThrow({
-      where: { id: ensuredStudent.id },
+      where: { userId: session.user.id },
       include: {
         opportunityInterests: { include: { opportunityType: true } },
         keywords: true,

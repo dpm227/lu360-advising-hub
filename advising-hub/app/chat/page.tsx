@@ -1,9 +1,9 @@
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { AdvisorChat, type ChatPageContext } from "@/components/AdvisorChat";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma-client";
 import type { StudentProfile } from "@/lib/recommendations";
-import { ensureStudentForUser } from "@/lib/student-profile";
 
 const generalStudentProfile: StudentProfile = {
   name: "Student",
@@ -51,19 +51,18 @@ async function getChatContext() {
     return buildChatContext(generalStudentProfile, false);
   }
 
-  const ensuredStudent = await ensureStudentForUser({
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name ?? null,
-  });
-  const student = await prisma.student.findUniqueOrThrow({
-    where: { id: ensuredStudent.id },
+  const student = await prisma.student.findUnique({
+    where: { userId: session.user.id },
     include: {
       opportunityInterests: { include: { opportunityType: true } },
       keywords: true,
       statuses: true,
     },
   });
+
+  if (!student) {
+    redirect("/signin");
+  }
 
   const name =
     [student.firstName, student.lastName].filter(Boolean).join(" ") ||

@@ -3,7 +3,6 @@ import { prisma as db } from "@/lib/prisma-client";
 import { rankedPrograms, type StudentProfile } from "@/lib/recommendations";
 import { authOptions } from "@/lib/auth";
 import { getProgramRecords } from "@/lib/program-records";
-import { ensureStudentForUser } from "@/lib/student-profile";
 import { getServerSession } from "next-auth";
 
 type ChatRequest = {
@@ -141,14 +140,8 @@ async function getSessionStudent() {
     return null;
   }
 
-  const ensuredStudent = await ensureStudentForUser({
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name ?? null,
-  });
-
   return db.student.findUnique({
-    where: { id: ensuredStudent.id },
+    where: { userId: session.user.id },
     include: {
       opportunityInterests: { include: { opportunityType: true } },
       keywords: true,

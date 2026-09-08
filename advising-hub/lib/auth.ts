@@ -17,21 +17,6 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user }) {
-      if (user.id && user.email) {
-        try {
-          await ensureStudentForUser({
-            id: user.id,
-            email: user.email,
-            name: user.name ?? null,
-          });
-        } catch (error) {
-          console.error("Failed to ensure student profile during sign-in", error);
-        }
-      }
-
-      return true;
-    },
     async session({ session, user }) {
       if (session.user) {
         session.user.id = user.id;
@@ -45,20 +30,17 @@ export const authOptions: NextAuthOptions = {
     signIn: "/signin",
   },
   events: {
-    async createUser({ user }) {
+    // The sign-in event receives the persisted user, including on first sign-in.
+    async signIn({ user }) {
       if (!user.email) {
-        return;
+        throw new Error("An email address is required to set up a student profile.");
       }
 
-      try {
-        await ensureStudentForUser({
-          id: user.id,
-          email: user.email,
-          name: user.name ?? null,
-        });
-      } catch (error) {
-        console.error("Failed to create student profile for new user", error);
-      }
+      await ensureStudentForUser({
+        id: user.id,
+        email: user.email,
+        name: user.name ?? null,
+      });
     },
   },
 };
