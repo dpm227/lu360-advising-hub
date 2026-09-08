@@ -49,7 +49,9 @@ Tell me a little about yourself: your class year, college, major, interests, goa
 function fallbackReply(input: string) {
   const lowered = input.toLowerCase();
   const target =
-    programs.find((program) => lowered.includes(program.slug.replaceAll("-", " "))) ??
+    programs.find((program) =>
+      lowered.includes(program.slug.replaceAll("-", " ")),
+    ) ??
     (lowered.includes("marcon")
       ? programs.find((program) => program.slug === "marcon-fellows")
       : undefined) ??
@@ -89,55 +91,58 @@ export function AdvisorChat({
     [],
   );
 
-  const sendMessage = useCallback(async (message: string) => {
-    const trimmed = message.trim();
-    if (!trimmed || isSending) {
-      return;
-    }
+  const sendMessage = useCallback(
+    async (message: string) => {
+      const trimmed = message.trim();
+      if (!trimmed || isSending) {
+        return;
+      }
 
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: trimmed,
-    };
-
-    setMessages((current) => [...current, userMessage]);
-    setInput("");
-    setIsSending(true);
-
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed, threadId }),
-      });
-      const payload = (await response.json()) as {
-        response?: string;
-        threadId?: string;
+      const userMessage: Message = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: trimmed,
       };
 
-      setThreadId(payload.threadId ?? threadId);
-      setMessages((current) => [
-        ...current,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: payload.response ?? fallbackReply(trimmed),
-        },
-      ]);
-    } catch {
-      setMessages((current) => [
-        ...current,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: fallbackReply(trimmed),
-        },
-      ]);
-    } finally {
-      setIsSending(false);
-    }
-  }, [isSending, threadId]);
+      setMessages((current) => [...current, userMessage]);
+      setInput("");
+      setIsSending(true);
+
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: trimmed, threadId }),
+        });
+        const payload = (await response.json()) as {
+          response?: string;
+          threadId?: string;
+        };
+
+        setThreadId(payload.threadId ?? threadId);
+        setMessages((current) => [
+          ...current,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: payload.response ?? fallbackReply(trimmed),
+          },
+        ]);
+      } catch {
+        setMessages((current) => [
+          ...current,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: fallbackReply(trimmed),
+          },
+        ]);
+      } finally {
+        setIsSending(false);
+      }
+    },
+    [isSending, threadId],
+  );
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -145,7 +150,11 @@ export function AdvisorChat({
   }
 
   useEffect(() => {
-    if (!autoSendInitialPrompt || didAutoSendRef.current || !initialPrompt.trim()) {
+    if (
+      !autoSendInitialPrompt ||
+      didAutoSendRef.current ||
+      !initialPrompt.trim()
+    ) {
       return;
     }
 
@@ -158,11 +167,13 @@ export function AdvisorChat({
       <section className="chat-layout">
         <div className="chat-summary">
           <div className="chat-title-block">
-            <p className="eyebrow">LU360 Advising Hub</p>
+            <p className="eyebrow">LU360 AI Chat Assistant</p>
             <h1>Advisor Chat</h1>
           </div>
           <p className="eyebrow">
-            {context.isSignedIn ? "Profile context loaded" : "Program context loaded"}
+            {context.isSignedIn
+              ? "Profile context loaded"
+              : "Program context loaded"}
           </p>
           <h2>Programs, profile, requirements</h2>
           <p>{context.summary}</p>

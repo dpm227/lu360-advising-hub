@@ -3,7 +3,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LU360 Advising Hub",
+  title: "LU360 AI Chat Assistant",
   description:
     "Program discovery, advising chat, and student profile matching for Lehigh360.",
 };
