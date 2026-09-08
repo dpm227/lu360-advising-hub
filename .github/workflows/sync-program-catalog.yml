@@ -2,8 +2,8 @@ name: Sync program catalog
 
 on:
   schedule:
-    # Twice weekly: Mondays and Thursdays at 09:17 UTC.
-    - cron: "17 9 * * 1,4"
+    # Monday through Friday at 09:17 UTC.
+    - cron: "17 9 * * 1-5"
   workflow_dispatch:
 
 permissions:

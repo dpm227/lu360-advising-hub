@@ -66,16 +66,15 @@ export function AppShell({
   hidePageHeader = false,
   children,
 }: AppShellProps) {
-  const activeItem =
-    navItems.find((item) => item.id === active) ?? navItems[0];
+  const activeItem = navItems.find((item) => item.id === active) ?? navItems[0];
 
   return (
     <main className="site-shell">
       <nav className="site-navbar" aria-label="Primary navigation">
         <Link className="site-brand" href="/">
           <span>
-            <strong>Lehigh 360</strong>
-            <small>Advising Hub</small>
+            <strong>Lehigh360</strong>
+            <small>AI Chat Assistant</small>
           </span>
         </Link>
 
