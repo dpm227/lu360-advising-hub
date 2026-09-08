@@ -1241,6 +1241,85 @@ select {
   opacity: 0.6;
 }
 
+.page-skeleton .skeleton {
+  display: block;
+  max-width: 100%;
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--outline-variant) 48%, white);
+  animation: skeleton-pulse 1.8s ease-in-out infinite;
+}
+
+.skeleton-lines,
+.skeleton-heading {
+  display: grid;
+  min-width: 0;
+  gap: 9px;
+}
+
+.skeleton-heading {
+  flex: 1;
+}
+
+.page-skeleton .skeleton-pill,
+.page-skeleton .profile-avatar,
+.page-skeleton .carousel-arrow {
+  border-radius: 999px;
+}
+
+.page-skeleton .program-image,
+.page-skeleton .selected-program-image {
+  border-radius: 0;
+}
+
+.page-skeleton .hero-program {
+  display: flex;
+  border-radius: 8px;
+  cursor: default;
+}
+
+.page-skeleton .hero-program::before {
+  content: none;
+}
+
+.skeleton-hero-label {
+  width: 100%;
+  padding: 16px;
+}
+
+.page-skeleton .hero-program .skeleton {
+  background: rgb(255 255 255 / 0.65);
+}
+
+.page-skeleton .carousel-arrow {
+  cursor: default;
+}
+
+.page-skeleton .skeleton-message {
+  display: grid;
+  width: min(84%, 520px);
+  gap: 16px;
+}
+
+.page-skeleton .skeleton-input {
+  min-width: 0;
+}
+
+.page-skeleton .profile-fields .skeleton:last-child {
+  margin-bottom: 0;
+}
+
+@keyframes skeleton-pulse {
+  50% { opacity: 0.5; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-skeleton .skeleton {
+    animation: none;
+  }
+}
+
 @media (max-width: 1100px) {
   .profile-layout {
     grid-template-columns: 1fr;
