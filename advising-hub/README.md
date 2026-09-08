@@ -1,6 +1,6 @@
-# LU360 Advising Hub
+# LU360 AI Chat Assistant
 
-Next.js, React, TypeScript, and Prisma implementation for the LU360 Advising Hub.
+Next.js, React, TypeScript, and Prisma implementation for the LU360 AI Chat Assistant.
 
 The first slice includes:
 

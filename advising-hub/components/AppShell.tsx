@@ -136,7 +136,7 @@ export function AppShell({
       <section className="app-surface" aria-label={title}>
         {!hidePageHeader ? (
           <header className="page-header">
-            <p className="eyebrow">LU360 Advising Hub</p>
+            <p className="eyebrow">LU360 AI Chat Assistant</p>
             <h1>{title}</h1>
           </header>
         ) : null}

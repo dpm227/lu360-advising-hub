@@ -9,7 +9,7 @@ export default function SignInPage() {
       <section className="signin-panel">
         <div>
           <p className="eyebrow">Google OAuth</p>
-          <h2>Sign in to LU360 Advising Hub</h2>
+          <h2>Sign in to LU360 AI Chat Assistant</h2>
           <p>
             Use your Google account to save profile details, chat history, and
             program recommendations.
@@ -22,4 +22,3 @@ export default function SignInPage() {
     </AppShell>
   );
 }
-
