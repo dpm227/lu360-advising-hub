@@ -75,7 +75,7 @@ How to guide the conversation:
 - Students may ignore the introduction and ask specific questions about specific programs. Answer those directly.
 - Recommend similar programs when helpful.
 - If you cannot find a working link for a specific program, send the user to https://360.lehigh.edu/.
-- Make sure students know this is a hub to find programs. They need to click the "Access Database" button or the "View Program" tab to see the program information.
+- Make sure students know this is a wesbite to find programs. They need to click the "Access Database" button or the "View Program" tab to see the program information.
 
 Response rules:
 - Provide correct and accurate information grounded in the supplied program catalog.
@@ -153,12 +153,12 @@ async function getSessionStudent() {
 function hasPersonalProfile(profile: StudentProfile) {
   return Boolean(
     profile.email ||
-      profile.classYear ||
-      profile.college ||
-      profile.major ||
-      profile.interests.length > 0 ||
-      profile.keywords.length > 0 ||
-      profile.statuses.length > 0,
+    profile.classYear ||
+    profile.college ||
+    profile.major ||
+    profile.interests.length > 0 ||
+    profile.keywords.length > 0 ||
+    profile.statuses.length > 0,
   );
 }
 
@@ -171,7 +171,9 @@ function localAdvisorResponse(
   const ranked = rankedPrograms(profile, catalog);
   const mentionedProgram =
     catalog.find((program) => lowered.includes(program.title.toLowerCase())) ??
-    catalog.find((program) => lowered.includes(program.slug.replaceAll("-", " "))) ??
+    catalog.find((program) =>
+      lowered.includes(program.slug.replaceAll("-", " ")),
+    ) ??
     (lowered.includes("marcon")
       ? catalog.find((program) => program.slug === "marcon-fellows")
       : undefined);
@@ -180,16 +182,18 @@ function localAdvisorResponse(
   const match = ranked.find((item) => item.program.id === target.id);
   const hasProfile = hasPersonalProfile(profile);
   const reasons = hasProfile ? match?.reasons.slice(0, 3).join("; ") : "";
-  const deadline = target.deadline ? ` The listed deadline is ${target.deadline}.` : "";
+  const deadline = target.deadline
+    ? ` The listed deadline is ${target.deadline}.`
+    : "";
 
   return `## ${target.title}
 
 ${hasProfile ? `This program has a **${match?.score ?? 70}% profile match** for ${profile.name}.` : "Here are the current program details. Share your class year, college, interests, and funding needs if you want a more personal fit check."}
 
 - **Eligibility:** ${target.eligibleClassYears.join(", ") || "Not listed"}
-- **Period:** ${target.periods.join(
-    ", ",
-  ) || "Not listed"}${deadline ? `\n- **Deadline:** ${target.deadline}` : ""}
+- **Period:** ${
+    target.periods.join(", ") || "Not listed"
+  }${deadline ? `\n- **Deadline:** ${target.deadline}` : ""}
 - **Funding / compensation:** ${
     target.fundingTypes.length
       ? target.fundingTypes.join(", ")
@@ -256,8 +260,9 @@ ${message}`,
 
     return (
       payload.output_text ??
-      payload.output?.flatMap((item) => item.content ?? []).find((item) => item.text)
-        ?.text ??
+      payload.output
+        ?.flatMap((item) => item.content ?? [])
+        .find((item) => item.text)?.text ??
       null
     );
   } catch {
