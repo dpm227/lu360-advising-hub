@@ -10,6 +10,8 @@ type ProgramActionsProps = {
   applicationUrl?: string;
   sourceUrl: string;
   initialSaved?: boolean;
+  saved?: boolean;
+  onSavedChange?: (saved: boolean) => void;
 };
 
 type ProgramAction = "save" | "unsave";
@@ -20,9 +22,12 @@ export function ProgramActions({
   applicationUrl,
   sourceUrl,
   initialSaved = false,
+  saved: savedOverride,
+  onSavedChange,
 }: ProgramActionsProps) {
   const { status } = useSession();
-  const [saved, setSaved] = useState(initialSaved);
+  const [localSaved, setSaved] = useState(initialSaved);
+  const saved = savedOverride ?? localSaved;
   const [isBusy, setIsBusy] = useState(false);
 
   async function updateProgram(action: ProgramAction) {
@@ -52,6 +57,7 @@ export function ProgramActions({
       };
 
       setSaved(Boolean(payload.saved));
+      onSavedChange?.(Boolean(payload.saved));
     } finally {
       setIsBusy(false);
     }

@@ -41,22 +41,24 @@ export default async function ProfilePage() {
     );
   }
 
-  const student = await prisma.student.findUnique({
-    where: { userId: session.user.id },
-    include: {
-      opportunityInterests: { include: { opportunityType: true } },
-      keywords: true,
-      statuses: true,
-      savedPrograms: { include: { program: { select: { slug: true } } } },
-      hiddenPrograms: { include: { program: { select: { slug: true } } } },
-    },
-  });
+  const [student, { programs }] = await Promise.all([
+    prisma.student.findUnique({
+      where: { userId: session.user.id },
+      include: {
+        opportunityInterests: { include: { opportunityType: true } },
+        keywords: true,
+        statuses: true,
+        savedPrograms: { include: { program: { select: { slug: true } } } },
+        hiddenPrograms: { include: { program: { select: { slug: true } } } },
+      },
+    }),
+    getProgramRecords("profile page"),
+  ]);
 
   if (!student) {
     redirect("/signin");
   }
 
-  const { programs } = await getProgramRecords("profile page");
   const programOptions = getProgramOptions(programs);
   const name =
     [student.firstName, student.lastName].filter(Boolean).join(" ") ||
@@ -107,7 +109,9 @@ export default async function ProfilePage() {
   const hiddenSlugs = new Set(
     student.hiddenPrograms.map((hidden) => hidden.program.slug),
   );
-  const savedPrograms = programs.filter((program) => savedSlugs.has(program.slug));
+  const savedPrograms = programs.filter((program) =>
+    savedSlugs.has(program.slug),
+  );
   const matches = rankedPrograms(profile, programs)
     .filter(({ program }) => !hiddenSlugs.has(program.slug))
     .slice(0, 2);
@@ -195,7 +199,9 @@ export default async function ProfilePage() {
           <div className="section-heading">
             <div>
               <p className="eyebrow">Saved path</p>
-              <h2>{savedPrograms.length > 0 ? "Saved programs" : "Top matches"}</h2>
+              <h2>
+                {savedPrograms.length > 0 ? "Saved programs" : "Top matches"}
+              </h2>
             </div>
           </div>
           {(savedPrograms.length > 0

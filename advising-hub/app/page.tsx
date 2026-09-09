@@ -84,9 +84,8 @@ async function getStudentProgramLists() {
 }
 
 export default async function Home() {
-  const { savedSlugs, hiddenSlugs, profileName, profile } =
-    await getStudentProgramLists();
-  const { programs } = await getProgramRecords("discover page");
+  const [{ savedSlugs, hiddenSlugs, profileName, profile }, { programs }] =
+    await Promise.all([getStudentProgramLists(), getProgramRecords("discover page")]);
   const visiblePrograms = programs.filter((program) => !hiddenSlugs.has(program.slug));
   const rankedVisiblePrograms = rankedPrograms(profile, visiblePrograms);
   const featuredPrograms = rankedVisiblePrograms
@@ -96,7 +95,7 @@ export default async function Home() {
 
   return (
     <AppShell active="discover" title="Discover">
-      <DiscoverCarousel programs={featuredPrograms} />
+      <DiscoverCarousel programs={featuredPrograms} savedSlugs={[...savedSlugs]} />
 
       <section className="content-section">
         <div className="section-heading">

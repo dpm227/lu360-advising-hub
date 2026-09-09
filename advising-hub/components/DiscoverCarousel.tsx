@@ -11,6 +11,7 @@ export type FeaturedProgramMatch = {
 
 type DiscoverCarouselProps = {
   programs: FeaturedProgramMatch[];
+  savedSlugs: string[];
 };
 
 function formatDate(date?: string) {
@@ -26,8 +27,9 @@ function formatDate(date?: string) {
   }).format(new Date(`${date}T00:00:00Z`));
 }
 
-export function DiscoverCarousel({ programs }: DiscoverCarouselProps) {
+export function DiscoverCarousel({ programs, savedSlugs }: DiscoverCarouselProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [savedBySlug, setSavedBySlug] = useState<Record<string, boolean>>({});
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const selectedMatch = programs[selectedIndex];
   const selectedProgram = selectedMatch?.program;
@@ -122,7 +124,12 @@ export function DiscoverCarousel({ programs }: DiscoverCarouselProps) {
             </div>
             <div className="selected-program-links">
               <ProgramActions
+                key={selectedProgram.slug}
                 applicationUrl={selectedProgram.applicationUrl}
+                saved={savedBySlug[selectedProgram.slug] ?? savedSlugs.includes(selectedProgram.slug)}
+                onSavedChange={(saved) =>
+                  setSavedBySlug((current) => ({ ...current, [selectedProgram.slug]: saved }))
+                }
                 programName={selectedProgram.title}
                 programSlug={selectedProgram.slug}
                 sourceUrl={selectedProgram.sourceUrl}
