@@ -19,7 +19,8 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-The UI works with seed data even before a database is configured.
+The UI works with the static program catalog even before a database is configured.
+
 
 ## Database
 
@@ -86,3 +87,42 @@ https://your-domain.com/api/auth/callback/google
 ## Chat
 
 Without `OPENAI_API_KEY`, `/api/chat` returns deterministic advising responses from local program data. With `OPENAI_API_KEY`, it calls the OpenAI Responses API and still stores messages in Prisma when `DATABASE_URL` is configured.
+
+## How the app fits together
+
+### Directory map
+
+```text
+advising-hub/
+├── app/
+│   ├── page.tsx                 # Discover page and its data-loading flow
+│   └── api/                     # API route handlers
+├── components/
+│   ├── AppShell.tsx             # Shared page layout and navigation
+│   ├── DiscoverCarousel.tsx     # Featured program carousel
+│   ├── ProgramCard.tsx          # Program cards in the catalog
+│   └── ProgramActions.tsx       # Save, apply, chat, and source actions
+├── lib/
+│   ├── program-data.ts          # Static program catalog and fallback data
+│   ├── program-records.ts       # Selects database or fallback records
+│   └── recommendations.ts       # Program scoring and ranking
+└── prisma/
+    ├── schema.prisma            # PostgreSQL data model
+    └── seed.mjs                 # Copies the static catalog into PostgreSQL
+```
+
+### Discover page flow
+
+1. **Load the page context.** [`app/page.tsx`](app/page.tsx) handles `/` and loads the program catalog together with the student's profile and saved or hidden programs. Signed-out users use the demo profile.
+
+2. **Select the program source.** [`lib/program-records.ts`](lib/program-records.ts) reads from PostgreSQL when the database is available and contains programs. Otherwise, it falls back to [`lib/program-data.ts`](lib/program-data.ts).
+
+3. **Filter and rank.** Hidden programs are removed, then [`lib/recommendations.ts`](lib/recommendations.ts) scores and sorts the remaining programs using class year, college, interests, keywords, and funding needs.
+
+4. **Render the results.** [`DiscoverCarousel`](components/DiscoverCarousel.tsx) displays featured matches, while [`ProgramCard`](components/ProgramCard.tsx) renders the full visible catalog. Both use [`ProgramActions`](components/ProgramActions.tsx) for program interactions.
+
+### Static catalog and database data
+
+Running `npm run db:seed` executes [`prisma/seed.mjs`](prisma/seed.mjs), which copies the static catalog into PostgreSQL. The seed script does not run while the Discover page renders.
+
+At runtime, Discover uses database records when PostgreSQL is configured, reachable, and non-empty. Otherwise, it uses the static catalog as a fallback.
