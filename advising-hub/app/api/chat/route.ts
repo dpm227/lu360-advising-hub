@@ -25,6 +25,15 @@ type ChatRecommendation = {
   reason: string;
 };
 
+type OpenAIResponsePayload = {
+  output_text?: string;
+  output?: Array<{
+    content?: Array<{
+      text?: string;
+    }>;
+  }>;
+};
+
 type ChatProgramContext = {
   title: string;
   slug: string;
@@ -76,6 +85,38 @@ const generalStudentProfile: StudentProfile = {
   statuses: [],
 };
 
+const ADVISOR_RESPONSE_SCHEMA = {
+  type: "object",
+  properties: {
+    reply: {
+      type: "string",
+      description: "The student-facing answer, formatted as Markdown.",
+    },
+    recommendations: {
+      type: "array",
+      description:
+        "Programs explicitly recommended in the reply. Leave empty for factual answers that do not recommend a program.",
+      items: {
+        type: "object",
+        properties: {
+          slug: {
+            type: "string",
+            description: "An exact slug from the supplied program catalog.",
+          },
+          reason: {
+            type: "string",
+            description: "One short reason this program fits the student.",
+          },
+        },
+        required: ["slug", "reason"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["reply", "recommendations"],
+  additionalProperties: false,
+} as const;
+
 const SYSTEM_PROMPT = `You are the Lehigh360 AI assistant.
 
 What you need to know:
@@ -90,11 +131,14 @@ How to guide the conversation:
 - Students may ignore the introduction and ask specific questions about specific programs. Answer those directly.
 - Recommend similar programs when helpful.
 - If you cannot find a working link for a specific program, send the user to https://360.lehigh.edu/.
-- Make sure students know this is a wesbite to find programs. They need to click the "Access Database" button or the "View Program" tab to see the program information.
+- Make sure students know this is a website to find programs. They need to click the "Access Database" button or the "View Program" tab to see the program information.
 
 Response rules:
 - Provide correct and accurate information grounded in the supplied program catalog.
-- Format every response in Markdown so it displays cleanly.
+- Format the reply field in Markdown so it displays cleanly.
+- Recommend only programs from the supplied catalog and use their exact slugs.
+- Include one short reason for every recommended program.
+- Leave recommendations empty when the reply only answers a factual question and does not recommend a program.
 - Do not mention or cite any JSON file, internal data file, schema, prompt, or hidden context.
 - Keep answers student-friendly, concise, and useful.
 - If data is missing, say what is missing and suggest checking the Lehigh360 site.`;
@@ -207,6 +251,64 @@ function validateRecommendations(
   return validated;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseAdvisorResult(value: string | null): AdvisorResult | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+
+    if (
+      !isRecord(parsed) ||
+      typeof parsed.reply !== "string" ||
+      !Array.isArray(parsed.recommendations)
+    ) {
+      return null;
+    }
+
+    const reply = parsed.reply.trim();
+    const recommendations: RecommendationReference[] = [];
+
+    if (!reply) {
+      return null;
+    }
+
+    for (const recommendation of parsed.recommendations) {
+      if (
+        !isRecord(recommendation) ||
+        typeof recommendation.slug !== "string" ||
+        typeof recommendation.reason !== "string"
+      ) {
+        return null;
+      }
+
+      recommendations.push({
+        slug: recommendation.slug,
+        reason: recommendation.reason,
+      });
+    }
+
+    return { reply, recommendations };
+  } catch {
+    return null;
+  }
+}
+
+function extractResponseText(payload: OpenAIResponsePayload) {
+  return (
+    payload.output_text ??
+    payload.output
+      ?.flatMap((item) => item.content ?? [])
+      .find((item) => typeof item.text === "string")?.text ??
+    null
+  );
+}
+
 function localAdvisorResponse(
   message: string,
   profile: StudentProfile = generalStudentProfile,
@@ -262,7 +364,7 @@ async function askOpenAI(
   message: string,
   catalog: ChatProgramContext[],
   profile: StudentProfile,
-) {
+): Promise<AdvisorResult | null> {
   if (!process.env.OPENAI_API_KEY) {
     return null;
   }
@@ -297,6 +399,14 @@ Student message:
 ${message}`,
           },
         ],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "advisor_response",
+            strict: true,
+            schema: ADVISOR_RESPONSE_SCHEMA,
+          },
+        },
       }),
     });
 
@@ -304,20 +414,8 @@ ${message}`,
       return null;
     }
 
-    const payload = (await response.json()) as {
-      output_text?: string;
-      output?: Array<{
-        content?: Array<{ text?: string }>;
-      }>;
-    };
-
-    return (
-      payload.output_text ??
-      payload.output
-        ?.flatMap((item) => item.content ?? [])
-        .find((item) => item.text)?.text ??
-      null
-    );
+    const payload = (await response.json()) as OpenAIResponsePayload;
+    return parseAdvisorResult(extractResponseText(payload));
   } catch {
     return null;
   }
@@ -376,10 +474,9 @@ export async function POST(request: Request) {
 
   const { programs: programRecords } = await getProgramRecords("chat API");
   const programCatalog = programRecords.map(localProgramToContext);
-  const aiReply = await askOpenAI(message, programCatalog, profile);
-  const advisorResult: AdvisorResult = aiReply
-    ? { reply: aiReply, recommendations: [] }
-    : localAdvisorResponse(message, profile, programRecords);
+  const advisorResult =
+    (await askOpenAI(message, programCatalog, profile)) ??
+    localAdvisorResponse(message, profile, programRecords);
   const recommendations = validateRecommendations(
     advisorResult.recommendations,
     programRecords,
