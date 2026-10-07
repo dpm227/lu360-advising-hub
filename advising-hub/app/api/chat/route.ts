@@ -3,6 +3,7 @@ import { prisma as db } from "@/lib/prisma-client";
 import { rankedPrograms, type StudentProfile } from "@/lib/recommendations";
 import { authOptions } from "@/lib/auth";
 import { getProgramRecords } from "@/lib/program-records";
+import { RecommendationSource } from "@prisma/client";
 import { getServerSession } from "next-auth";
 
 type ChatRequest = {
@@ -61,6 +62,7 @@ type ChatProgramContext = {
 
 type ChatStudent = {
   id: string;
+  organizationId: string;
   firstName: string | null;
   lastName: string | null;
   email: string;
@@ -309,6 +311,96 @@ function extractResponseText(payload: OpenAIResponsePayload) {
   );
 }
 
+async function persistAssistantResult({
+  student,
+  chatThreadId,
+  reply,
+  recommendations,
+}: {
+  student: ChatStudent | null;
+  chatThreadId: string | null;
+  reply: string;
+  recommendations: ChatRecommendation[];
+}) {
+  const shouldSaveRecommendations = Boolean(
+    student && recommendations.length > 0,
+  );
+
+  if (!chatThreadId && !shouldSaveRecommendations) {
+    return;
+  }
+
+  await db.$transaction(async (transaction) => {
+    if (chatThreadId) {
+      await transaction.chatMessage.create({
+        data: { chatThreadId, role: "ASSISTANT", content: reply },
+      });
+    }
+
+    if (!student || recommendations.length === 0) {
+      return;
+    }
+
+    const databasePrograms = await transaction.program.findMany({
+      where: {
+        organizationId: student.organizationId,
+        slug: {
+          in: recommendations.map(({ program }) => program.slug),
+        },
+      },
+      select: { id: true, slug: true },
+    });
+    const programsBySlug = new Map(
+      databasePrograms.map((program) => [program.slug, program]),
+    );
+    const generatedAt = new Date();
+
+    for (const recommendation of recommendations) {
+      const program = programsBySlug.get(recommendation.program.slug);
+
+      if (!program) {
+        continue;
+      }
+
+      await transaction.studentProgramRecommendation.upsert({
+        where: {
+          studentId_programId_source: {
+            studentId: student.id,
+            programId: program.id,
+            source: RecommendationSource.CHAT,
+          },
+        },
+        update: {
+          explanation: recommendation.reason,
+          generatedAt,
+          ...(chatThreadId ? { chatThreadId } : {}),
+        },
+        create: {
+          studentId: student.id,
+          programId: program.id,
+          source: RecommendationSource.CHAT,
+          chatThreadId,
+          explanation: recommendation.reason,
+          generatedAt,
+        },
+      });
+
+      if (chatThreadId) {
+        await transaction.chatThreadProgram.upsert({
+          where: {
+            chatThreadId_programId: {
+              chatThreadId,
+              programId: program.id,
+            },
+          },
+          update: {},
+          create: { chatThreadId, programId: program.id },
+        });
+      }
+    }
+  });
+}
+
 function localAdvisorResponse(
   message: string,
   profile: StudentProfile = generalStudentProfile,
@@ -439,6 +531,7 @@ export async function POST(request: Request) {
 
   const profile = studentToProfile(student);
   let chatThreadId = body.threadId ?? null;
+  let confirmedChatThreadId: string | null = null;
 
   try {
     const existingThread = chatThreadId
@@ -468,6 +561,7 @@ export async function POST(request: Request) {
     await db.chatMessage.create({
       data: { chatThreadId, role: "USER", content: message },
     });
+    confirmedChatThreadId = thread.id;
   } catch {
     chatThreadId = body.threadId ?? null;
   }
@@ -483,17 +577,17 @@ export async function POST(request: Request) {
   );
 
   try {
-    if (chatThreadId) {
-      await db.chatMessage.create({
-        data: {
-          chatThreadId,
-          role: "ASSISTANT",
-          content: advisorResult.reply,
-        },
-      });
-    }
-  } catch {
-    // Chat should stay usable even if persistence is temporarily unavailable.
+    await persistAssistantResult({
+      student,
+      chatThreadId: confirmedChatThreadId,
+      reply: advisorResult.reply,
+      recommendations,
+    });
+  } catch (error) {
+    console.warn(
+      "[LU360_RECOMMENDATION_PERSISTENCE_FAILED] Unable to save the assistant response or its recommended programs.",
+      error,
+    );
   }
 
   return Response.json({
