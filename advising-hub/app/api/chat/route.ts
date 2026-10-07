@@ -10,6 +10,21 @@ type ChatRequest = {
   threadId?: string | null;
 };
 
+type RecommendationReference = {
+  slug: string;
+  reason: string;
+};
+
+type AdvisorResult = {
+  reply: string;
+  recommendations: RecommendationReference[];
+};
+
+type ChatRecommendation = {
+  program: ProgramRecord;
+  reason: string;
+};
+
 type ChatProgramContext = {
   title: string;
   slug: string;
@@ -162,11 +177,41 @@ function hasPersonalProfile(profile: StudentProfile) {
   );
 }
 
+function sentenceCase(value: string) {
+  return value ? `${value[0].toUpperCase()}${value.slice(1)}` : value;
+}
+
+function validateRecommendations(
+  recommendations: RecommendationReference[],
+  catalog: ProgramRecord[],
+): ChatRecommendation[] {
+  const programsBySlug = new Map(
+    catalog.map((program) => [program.slug.toLowerCase(), program]),
+  );
+  const seenSlugs = new Set<string>();
+  const validated: ChatRecommendation[] = [];
+
+  for (const recommendation of recommendations) {
+    const slug = recommendation.slug.trim().toLowerCase();
+    const reason = recommendation.reason.trim();
+    const program = programsBySlug.get(slug);
+
+    if (!program || !reason || seenSlugs.has(slug)) {
+      continue;
+    }
+
+    seenSlugs.add(slug);
+    validated.push({ program, reason });
+  }
+
+  return validated;
+}
+
 function localAdvisorResponse(
   message: string,
   profile: StudentProfile = generalStudentProfile,
   catalog: ProgramRecord[] = programs,
-) {
+): AdvisorResult {
   const lowered = message.toLowerCase();
   const ranked = rankedPrograms(profile, catalog);
   const mentionedProgram =
@@ -181,28 +226,36 @@ function localAdvisorResponse(
 
   const match = ranked.find((item) => item.program.id === target.id);
   const hasProfile = hasPersonalProfile(profile);
-  const reasons = hasProfile ? match?.reasons.slice(0, 3).join("; ") : "";
-  const deadline = target.deadline
-    ? ` The listed deadline is ${target.deadline}.`
-    : "";
+  const reasons = hasProfile ? match?.reasons.slice(0, 3) ?? [] : [];
+  const fitRationale = reasons.join("; ");
+  const recommendationReason = fitRationale
+    ? `${sentenceCase(fitRationale)}.`
+    : mentionedProgram
+      ? "Matches the program requested in this conversation."
+      : "A strong starting point from the current program catalog.";
 
-  return `## ${target.title}
+  const reply = `## ${target.title}
 
 ${hasProfile ? `This program has a **${match?.score ?? 70}% profile match** for ${profile.name}.` : "Here are the current program details. Share your class year, college, interests, and funding needs if you want a more personal fit check."}
 
 - **Eligibility:** ${target.eligibleClassYears.join(", ") || "Not listed"}
 - **Period:** ${
     target.periods.join(", ") || "Not listed"
-  }${deadline ? `\n- **Deadline:** ${target.deadline}` : ""}
+  }${target.deadline ? `\n- **Deadline:** ${target.deadline}` : ""}
 - **Funding / compensation:** ${
     target.fundingTypes.length
       ? target.fundingTypes.join(", ")
       : "No compensation is listed yet."
   }
 
-${reasons ? `**Fit rationale:** ${reasons}.` : ""}
+${fitRationale ? `**Fit rationale:** ${fitRationale}.` : ""}
 
 This hub helps you find programs. To see the official program information, use **Access Database** or **View Program** in Lehigh360.`;
+
+  return {
+    reply,
+    recommendations: [{ slug: target.slug, reason: recommendationReason }],
+  };
 }
 
 async function askOpenAI(
@@ -323,14 +376,23 @@ export async function POST(request: Request) {
 
   const { programs: programRecords } = await getProgramRecords("chat API");
   const programCatalog = programRecords.map(localProgramToContext);
-  const aiResponse =
-    (await askOpenAI(message, programCatalog, profile)) ??
-    localAdvisorResponse(message, profile, programRecords);
+  const aiReply = await askOpenAI(message, programCatalog, profile);
+  const advisorResult: AdvisorResult = aiReply
+    ? { reply: aiReply, recommendations: [] }
+    : localAdvisorResponse(message, profile, programRecords);
+  const recommendations = validateRecommendations(
+    advisorResult.recommendations,
+    programRecords,
+  );
 
   try {
     if (chatThreadId) {
       await db.chatMessage.create({
-        data: { chatThreadId, role: "ASSISTANT", content: aiResponse },
+        data: {
+          chatThreadId,
+          role: "ASSISTANT",
+          content: advisorResult.reply,
+        },
       });
     }
   } catch {
@@ -338,7 +400,8 @@ export async function POST(request: Request) {
   }
 
   return Response.json({
-    response: aiResponse,
+    response: advisorResult.reply,
     threadId: chatThreadId,
+    recommendations,
   });
 }
