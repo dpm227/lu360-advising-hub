@@ -284,16 +284,17 @@ model StudentStatus {
 }
 
 model ChatThread {
-  id        String              @id @default(cuid())
-  studentId String?
-  student   Student?            @relation(fields: [studentId], references: [id], onDelete: SetNull)
-  advisorId String?
-  advisor   Advisor?            @relation(fields: [advisorId], references: [id], onDelete: SetNull)
-  title     String?
-  messages  ChatMessage[]
-  programs  ChatThreadProgram[]
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
+  id              String                         @id @default(cuid())
+  studentId       String?
+  student         Student?                       @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  advisorId       String?
+  advisor         Advisor?                       @relation(fields: [advisorId], references: [id], onDelete: SetNull)
+  title           String?
+  messages        ChatMessage[]
+  programs        ChatThreadProgram[]
+  recommendations StudentProgramRecommendation[]
+  createdAt       DateTime                       @default(now())
+  updatedAt       DateTime                       @updatedAt
 }
 
 model ChatMessage {
@@ -343,19 +344,28 @@ model StudentHiddenProgram {
   @@unique([studentId, programId])
 }
 
-model StudentProgramRecommendation {
-  id                    String   @id @default(cuid())
-  studentId             String
-  student               Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  programId             String
-  program               Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
-  eligibilityPassed     Boolean  @default(true)
-  eligibilityReason     String?
-  contentSimilarityScore Float?
-  finalScore            Float?
-  explanation           String?
-  generatedAt           DateTime @default(now())
+enum RecommendationSource {
+  CHAT
+  PROFILE_MATCH
+}
 
+model StudentProgramRecommendation {
+  id                     String               @id @default(cuid())
+  studentId              String
+  student                Student              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  programId              String
+  program                Program              @relation(fields: [programId], references: [id], onDelete: Cascade)
+  source                 RecommendationSource @default(PROFILE_MATCH)
+  chatThreadId           String?
+  chatThread             ChatThread?          @relation(fields: [chatThreadId], references: [id], onDelete: SetNull)
+  eligibilityPassed      Boolean              @default(true)
+  eligibilityReason      String?
+  contentSimilarityScore Float?
+  finalScore             Float?
+  explanation            String?
+  generatedAt            DateTime             @default(now())
+
+  @@unique([studentId, programId, source])
   @@index([studentId])
   @@index([programId])
 }
