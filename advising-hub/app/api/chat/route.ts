@@ -1,6 +1,10 @@
 import { programs, type ProgramRecord } from "@/lib/program-data";
 import { prisma as db } from "@/lib/prisma-client";
-import { rankedPrograms, type StudentProfile } from "@/lib/recommendations";
+import {
+  evaluateProgramEligibility,
+  rankedPrograms,
+  type StudentProfile,
+} from "@/lib/recommendations";
 import { authOptions } from "@/lib/auth";
 import { getProgramRecords } from "@/lib/program-records";
 import { RecommendationSource } from "@prisma/client";
@@ -329,11 +333,13 @@ function extractResponseText(payload: OpenAIResponsePayload) {
 
 async function persistAssistantResult({
   student,
+  profile,
   chatThreadId,
   reply,
   recommendations,
 }: {
   student: ChatStudent | null;
+  profile: StudentProfile;
   chatThreadId: string | null;
   reply: string;
   recommendations: ChatRecommendation[];
@@ -378,6 +384,11 @@ async function persistAssistantResult({
         continue;
       }
 
+      const eligibility = evaluateProgramEligibility(
+        recommendation.program,
+        profile,
+      );
+
       await transaction.studentProgramRecommendation.upsert({
         where: {
           studentId_programId_source: {
@@ -388,6 +399,8 @@ async function persistAssistantResult({
         },
         update: {
           explanation: recommendation.reason,
+          eligibilityPassed: eligibility.eligible,
+          eligibilityReason: eligibility.reason,
           generatedAt,
           ...(chatThreadId ? { chatThreadId } : {}),
         },
@@ -397,6 +410,8 @@ async function persistAssistantResult({
           source: RecommendationSource.CHAT,
           chatThreadId,
           explanation: recommendation.reason,
+          eligibilityPassed: eligibility.eligible,
+          eligibilityReason: eligibility.reason,
           generatedAt,
         },
       });
@@ -598,6 +613,7 @@ export async function POST(request: Request) {
   try {
     await persistAssistantResult({
       student,
+      profile,
       chatThreadId: confirmedChatThreadId,
       reply: advisorResult.reply,
       recommendations,
