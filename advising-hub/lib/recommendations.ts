@@ -24,6 +24,13 @@ export const demoProfile: StudentProfile = {
   statuses: ["F1RST+ Student"],
 };
 
+function classYearStudentLabel(classYear: string) {
+  const normalized = classYear.toLowerCase();
+  return normalized.endsWith("student")
+    ? `${normalized}s`
+    : `${normalized} students`;
+}
+
 export function evaluateProgramEligibility(
   program: ProgramRecord,
   profile: StudentProfile,
@@ -71,7 +78,7 @@ export function scoreProgram(program: ProgramRecord, profile = demoProfile) {
 
   if (program.eligibleClassYears.includes(profile.classYear)) {
     score += 20;
-    reasons.push(`open to ${profile.classYear.toLowerCase()} students`);
+    reasons.push(`open to ${classYearStudentLabel(profile.classYear)}`);
   }
 
   if (program.colleges.includes(profile.college)) {

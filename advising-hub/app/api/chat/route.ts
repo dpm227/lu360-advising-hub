@@ -440,6 +440,16 @@ function localAdvisorResponse(
   const lowered = message.toLowerCase();
   const shouldRecommend = isRecommendationRequest(message);
   const ranked = rankedPrograms(profile, catalog);
+  const topMatch = ranked[0];
+
+  if (!topMatch) {
+    return {
+      reply:
+        "I couldn't find any programs in the current catalog. Please check Lehigh360 for the latest program information.",
+      recommendations: [],
+    };
+  }
+
   const mentionedProgram =
     catalog.find((program) => lowered.includes(program.title.toLowerCase())) ??
     catalog.find((program) =>
@@ -448,21 +458,52 @@ function localAdvisorResponse(
     (lowered.includes("marcon")
       ? catalog.find((program) => program.slug === "marcon-fellows")
       : undefined);
-  const target = mentionedProgram ?? ranked[0].program;
-
-  const match = ranked.find((item) => item.program.id === target.id);
   const hasProfile = hasPersonalProfile(profile);
-  const reasons = hasProfile ? match?.reasons.slice(0, 3) ?? [] : [];
+  let match = topMatch;
+
+  if (mentionedProgram) {
+    match =
+      ranked.find((item) => item.program.id === mentionedProgram.id) ??
+      topMatch;
+  } else if (shouldRecommend && hasProfile) {
+    match = ranked.find((item) => item.eligible) ?? topMatch;
+  }
+
+  const target = match.program;
+  const reasons = hasProfile ? match.reasons.slice(0, 3) : [];
   const fitRationale = reasons.join("; ");
-  const recommendationReason = fitRationale
-    ? `${sentenceCase(fitRationale)}.`
-    : mentionedProgram
-      ? "Matches the program requested in this conversation."
-      : "A strong starting point from the current program catalog.";
+  let recommendationReason =
+    "A starting point from the current program catalog; share your profile for a personalized eligibility check.";
+
+  if (hasProfile && !match.eligible) {
+    recommendationReason = `Not currently eligible. ${match.eligibilityReason}`;
+  } else if (fitRationale) {
+    recommendationReason = `${sentenceCase(fitRationale)}.`;
+  } else if (mentionedProgram) {
+    recommendationReason = "Matches the program requested in this conversation.";
+  } else if (hasProfile) {
+    recommendationReason =
+      "A strong starting point from the current program catalog.";
+  }
+
+  const profileMatchSummary = match.eligible
+    ? `This program has a **${match.score}% profile match** for ${profile.name}.`
+    : `This program matches some of your interests, but you are **not currently eligible**. ${match.eligibilityReason}`;
+  const shouldReturnRecommendation = Boolean(
+    shouldRecommend && (!hasProfile || mentionedProgram || match.eligible),
+  );
+  let responseSummary = "Here are the current program details.";
+
+  if (shouldRecommend && hasProfile) {
+    responseSummary = profileMatchSummary;
+  } else if (shouldRecommend) {
+    responseSummary =
+      "Here is a starting recommendation from the current program catalog. Share your profile for a personalized eligibility check.";
+  }
 
   const reply = `## ${target.title}
 
-${shouldRecommend && hasProfile ? `This program has a **${match?.score ?? 70}% profile match** for ${profile.name}.` : "Here are the current program details."}
+${responseSummary}
 
 - **Eligibility:** ${target.eligibleClassYears.join(", ") || "Not listed"}
 - **Period:** ${
@@ -474,13 +515,13 @@ ${shouldRecommend && hasProfile ? `This program has a **${match?.score ?? 70}% p
       : "No compensation is listed yet."
   }
 
-${shouldRecommend && fitRationale ? `**Fit rationale:** ${fitRationale}.` : ""}
+${shouldRecommend && fitRationale ? `**${match.eligible ? "Fit rationale" : "Interest alignment"}:** ${fitRationale}.` : ""}
 
 This hub helps you find programs. To see the official program information, use **Access Database** or **View Program** in Lehigh360.`;
 
   return {
     reply,
-    recommendations: shouldRecommend
+    recommendations: shouldReturnRecommendation
       ? [{ slug: target.slug, reason: recommendationReason }]
       : [],
   };
