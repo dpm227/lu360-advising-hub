@@ -227,6 +227,22 @@ function sentenceCase(value: string) {
   return value ? `${value[0].toUpperCase()}${value.slice(1)}` : value;
 }
 
+const RECOMMENDATION_INTENT_PATTERNS = [
+  /\brecommend(?:ed|ing|ations?)?\b/i,
+  /\bsuggest(?:ed|ing|ions?)?\b/i,
+  /\b(?:find|show|list)\s+(?:me\s+)?(?:a\s+|some\s+)?(?:funded\s+|paid\s+)?(?:research\s+)?(?:programs?|opportunities)\b/i,
+  /\b(?:which|what)\s+(?:programs?|opportunities)\s+(?:should|would|could|might|do)\b/i,
+  /\bwhat\s+should\s+i\s+(?:apply\s+to|join|choose)\b/i,
+  /\b(?:best|good|strong)\s+(?:fit|match)\b/i,
+  /\b(?:programs?|opportunities)\s+(?:for\s+me|that\s+(?:fit|match))\b/i,
+];
+
+function isRecommendationRequest(message: string) {
+  return RECOMMENDATION_INTENT_PATTERNS.some((pattern) =>
+    pattern.test(message),
+  );
+}
+
 function validateRecommendations(
   recommendations: RecommendationReference[],
   catalog: ProgramRecord[],
@@ -407,6 +423,7 @@ function localAdvisorResponse(
   catalog: ProgramRecord[] = programs,
 ): AdvisorResult {
   const lowered = message.toLowerCase();
+  const shouldRecommend = isRecommendationRequest(message);
   const ranked = rankedPrograms(profile, catalog);
   const mentionedProgram =
     catalog.find((program) => lowered.includes(program.title.toLowerCase())) ??
@@ -430,7 +447,7 @@ function localAdvisorResponse(
 
   const reply = `## ${target.title}
 
-${hasProfile ? `This program has a **${match?.score ?? 70}% profile match** for ${profile.name}.` : "Here are the current program details. Share your class year, college, interests, and funding needs if you want a more personal fit check."}
+${shouldRecommend && hasProfile ? `This program has a **${match?.score ?? 70}% profile match** for ${profile.name}.` : "Here are the current program details."}
 
 - **Eligibility:** ${target.eligibleClassYears.join(", ") || "Not listed"}
 - **Period:** ${
@@ -442,13 +459,15 @@ ${hasProfile ? `This program has a **${match?.score ?? 70}% profile match** for 
       : "No compensation is listed yet."
   }
 
-${fitRationale ? `**Fit rationale:** ${fitRationale}.` : ""}
+${shouldRecommend && fitRationale ? `**Fit rationale:** ${fitRationale}.` : ""}
 
 This hub helps you find programs. To see the official program information, use **Access Database** or **View Program** in Lehigh360.`;
 
   return {
     reply,
-    recommendations: [{ slug: target.slug, reason: recommendationReason }],
+    recommendations: shouldRecommend
+      ? [{ slug: target.slug, reason: recommendationReason }]
+      : [],
   };
 }
 
