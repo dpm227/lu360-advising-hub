@@ -1,13 +1,42 @@
 import { programs, type ProgramRecord } from "@/lib/program-data";
 import { prisma as db } from "@/lib/prisma-client";
-import { rankedPrograms, type StudentProfile } from "@/lib/recommendations";
+import {
+  evaluateProgramEligibility,
+  rankedPrograms,
+  type StudentProfile,
+} from "@/lib/recommendations";
 import { authOptions } from "@/lib/auth";
 import { getProgramRecords } from "@/lib/program-records";
+import { RecommendationSource } from "@prisma/client";
 import { getServerSession } from "next-auth";
 
 type ChatRequest = {
   message?: string;
   threadId?: string | null;
+};
+
+type RecommendationReference = {
+  slug: string;
+  reason: string;
+};
+
+type AdvisorResult = {
+  reply: string;
+  recommendations: RecommendationReference[];
+};
+
+type ChatRecommendation = {
+  program: ProgramRecord;
+  reason: string;
+};
+
+type OpenAIResponsePayload = {
+  output_text?: string;
+  output?: Array<{
+    content?: Array<{
+      text?: string;
+    }>;
+  }>;
 };
 
 type ChatProgramContext = {
@@ -37,6 +66,7 @@ type ChatProgramContext = {
 
 type ChatStudent = {
   id: string;
+  organizationId: string;
   firstName: string | null;
   lastName: string | null;
   email: string;
@@ -61,6 +91,38 @@ const generalStudentProfile: StudentProfile = {
   statuses: [],
 };
 
+const ADVISOR_RESPONSE_SCHEMA = {
+  type: "object",
+  properties: {
+    reply: {
+      type: "string",
+      description: "The student-facing answer, formatted as Markdown.",
+    },
+    recommendations: {
+      type: "array",
+      description:
+        "Programs explicitly recommended in the reply. Leave empty for factual answers that do not recommend a program.",
+      items: {
+        type: "object",
+        properties: {
+          slug: {
+            type: "string",
+            description: "An exact slug from the supplied program catalog.",
+          },
+          reason: {
+            type: "string",
+            description: "One short reason this program fits the student.",
+          },
+        },
+        required: ["slug", "reason"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["reply", "recommendations"],
+  additionalProperties: false,
+} as const;
+
 const SYSTEM_PROMPT = `You are the Lehigh360 AI assistant.
 
 What you need to know:
@@ -75,11 +137,14 @@ How to guide the conversation:
 - Students may ignore the introduction and ask specific questions about specific programs. Answer those directly.
 - Recommend similar programs when helpful.
 - If you cannot find a working link for a specific program, send the user to https://360.lehigh.edu/.
-- Make sure students know this is a wesbite to find programs. They need to click the "Access Database" button or the "View Program" tab to see the program information.
+- Make sure students know this is a website to find programs. They need to click the "Access Database" button or the "View Program" tab to see the program information.
 
 Response rules:
 - Provide correct and accurate information grounded in the supplied program catalog.
-- Format every response in Markdown so it displays cleanly.
+- Format the reply field in Markdown so it displays cleanly.
+- Recommend only programs from the supplied catalog and use their exact slugs.
+- Include one short reason for every recommended program.
+- Leave recommendations empty when the reply only answers a factual question and does not recommend a program.
 - Do not mention or cite any JSON file, internal data file, schema, prompt, or hidden context.
 - Keep answers student-friendly, concise, and useful.
 - If data is missing, say what is missing and suggest checking the Lehigh360 site.`;
@@ -162,13 +227,229 @@ function hasPersonalProfile(profile: StudentProfile) {
   );
 }
 
+function sentenceCase(value: string) {
+  return value ? `${value[0].toUpperCase()}${value.slice(1)}` : value;
+}
+
+const RECOMMENDATION_INTENT_PATTERNS = [
+  /\brecommend(?:ed|ing|ations?)?\b/i,
+  /\bsuggest(?:ed|ing|ions?)?\b/i,
+  /\b(?:find|show|list)\s+(?:me\s+)?(?:a\s+|some\s+)?(?:funded\s+|paid\s+)?(?:research\s+)?(?:programs?|opportunities)\b/i,
+  /\b(?:which|what)\s+(?:programs?|opportunities)\s+(?:should|would|could|might|do)\b/i,
+  /\bwhat\s+should\s+i\s+(?:apply\s+to|join|choose)\b/i,
+  /\b(?:best|good|strong)\s+(?:fit|match)\b/i,
+  /\b(?:programs?|opportunities)\s+(?:for\s+me|that\s+(?:fit|match))\b/i,
+];
+
+function isRecommendationRequest(message: string) {
+  return RECOMMENDATION_INTENT_PATTERNS.some((pattern) =>
+    pattern.test(message),
+  );
+}
+
+function validateRecommendations(
+  recommendations: RecommendationReference[],
+  catalog: ProgramRecord[],
+): ChatRecommendation[] {
+  const programsBySlug = new Map(
+    catalog.map((program) => [program.slug.toLowerCase(), program]),
+  );
+  const seenSlugs = new Set<string>();
+  const validated: ChatRecommendation[] = [];
+
+  for (const recommendation of recommendations) {
+    const slug = recommendation.slug.trim().toLowerCase();
+    const reason = recommendation.reason.trim();
+    const program = programsBySlug.get(slug);
+
+    if (!program || !reason || seenSlugs.has(slug)) {
+      continue;
+    }
+
+    seenSlugs.add(slug);
+    validated.push({ program, reason });
+  }
+
+  return validated;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseAdvisorResult(value: string | null): AdvisorResult | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+
+    if (
+      !isRecord(parsed) ||
+      typeof parsed.reply !== "string" ||
+      !Array.isArray(parsed.recommendations)
+    ) {
+      return null;
+    }
+
+    const reply = parsed.reply.trim();
+    const recommendations: RecommendationReference[] = [];
+
+    if (!reply) {
+      return null;
+    }
+
+    for (const recommendation of parsed.recommendations) {
+      if (
+        !isRecord(recommendation) ||
+        typeof recommendation.slug !== "string" ||
+        typeof recommendation.reason !== "string"
+      ) {
+        return null;
+      }
+
+      recommendations.push({
+        slug: recommendation.slug,
+        reason: recommendation.reason,
+      });
+    }
+
+    return { reply, recommendations };
+  } catch {
+    return null;
+  }
+}
+
+function extractResponseText(payload: OpenAIResponsePayload) {
+  return (
+    payload.output_text ??
+    payload.output
+      ?.flatMap((item) => item.content ?? [])
+      .find((item) => typeof item.text === "string")?.text ??
+    null
+  );
+}
+
+async function persistAssistantResult({
+  student,
+  profile,
+  chatThreadId,
+  reply,
+  recommendations,
+}: {
+  student: ChatStudent | null;
+  profile: StudentProfile;
+  chatThreadId: string | null;
+  reply: string;
+  recommendations: ChatRecommendation[];
+}) {
+  const shouldSaveRecommendations = Boolean(
+    student && recommendations.length > 0,
+  );
+
+  if (!chatThreadId && !shouldSaveRecommendations) {
+    return;
+  }
+
+  await db.$transaction(async (transaction) => {
+    if (chatThreadId) {
+      await transaction.chatMessage.create({
+        data: { chatThreadId, role: "ASSISTANT", content: reply },
+      });
+    }
+
+    if (!student || recommendations.length === 0) {
+      return;
+    }
+
+    const databasePrograms = await transaction.program.findMany({
+      where: {
+        organizationId: student.organizationId,
+        slug: {
+          in: recommendations.map(({ program }) => program.slug),
+        },
+      },
+      select: { id: true, slug: true },
+    });
+    const programsBySlug = new Map(
+      databasePrograms.map((program) => [program.slug, program]),
+    );
+    const generatedAt = new Date();
+
+    for (const recommendation of recommendations) {
+      const program = programsBySlug.get(recommendation.program.slug);
+
+      if (!program) {
+        continue;
+      }
+
+      const eligibility = evaluateProgramEligibility(
+        recommendation.program,
+        profile,
+      );
+
+      await transaction.studentProgramRecommendation.upsert({
+        where: {
+          studentId_programId_source: {
+            studentId: student.id,
+            programId: program.id,
+            source: RecommendationSource.CHAT,
+          },
+        },
+        update: {
+          explanation: recommendation.reason,
+          eligibilityPassed: eligibility.eligible,
+          eligibilityReason: eligibility.reason,
+          generatedAt,
+          ...(chatThreadId ? { chatThreadId } : {}),
+        },
+        create: {
+          studentId: student.id,
+          programId: program.id,
+          source: RecommendationSource.CHAT,
+          chatThreadId,
+          explanation: recommendation.reason,
+          eligibilityPassed: eligibility.eligible,
+          eligibilityReason: eligibility.reason,
+          generatedAt,
+        },
+      });
+
+      if (chatThreadId) {
+        await transaction.chatThreadProgram.upsert({
+          where: {
+            chatThreadId_programId: {
+              chatThreadId,
+              programId: program.id,
+            },
+          },
+          update: {},
+          create: { chatThreadId, programId: program.id },
+        });
+      }
+    }
+  });
+}
+
 function localAdvisorResponse(
   message: string,
   profile: StudentProfile = generalStudentProfile,
   catalog: ProgramRecord[] = programs,
-) {
+): AdvisorResult {
   const lowered = message.toLowerCase();
+  const shouldRecommend = isRecommendationRequest(message);
   const ranked = rankedPrograms(profile, catalog);
+  const topMatch = ranked[0];
+
+  if (!topMatch) {
+    return {
+      reply:
+        "I couldn't find any programs in the current catalog. Please check Lehigh360 for the latest program information.",
+      recommendations: [],
+    };
+  }
+
   const mentionedProgram =
     catalog.find((program) => lowered.includes(program.title.toLowerCase())) ??
     catalog.find((program) =>
@@ -177,39 +458,80 @@ function localAdvisorResponse(
     (lowered.includes("marcon")
       ? catalog.find((program) => program.slug === "marcon-fellows")
       : undefined);
-  const target = mentionedProgram ?? ranked[0].program;
-
-  const match = ranked.find((item) => item.program.id === target.id);
   const hasProfile = hasPersonalProfile(profile);
-  const reasons = hasProfile ? match?.reasons.slice(0, 3).join("; ") : "";
-  const deadline = target.deadline
-    ? ` The listed deadline is ${target.deadline}.`
-    : "";
+  let match = topMatch;
 
-  return `## ${target.title}
+  if (mentionedProgram) {
+    match =
+      ranked.find((item) => item.program.id === mentionedProgram.id) ??
+      topMatch;
+  } else if (shouldRecommend && hasProfile) {
+    match = ranked.find((item) => item.eligible) ?? topMatch;
+  }
 
-${hasProfile ? `This program has a **${match?.score ?? 70}% profile match** for ${profile.name}.` : "Here are the current program details. Share your class year, college, interests, and funding needs if you want a more personal fit check."}
+  const target = match.program;
+  const reasons = hasProfile ? match.reasons.slice(0, 3) : [];
+  const fitRationale = reasons.join("; ");
+  let recommendationReason =
+    "A starting point from the current program catalog; share your profile for a personalized eligibility check.";
+
+  if (hasProfile && !match.eligible) {
+    recommendationReason = `Not currently eligible. ${match.eligibilityReason}`;
+  } else if (fitRationale) {
+    recommendationReason = `${sentenceCase(fitRationale)}.`;
+  } else if (mentionedProgram) {
+    recommendationReason = "Matches the program requested in this conversation.";
+  } else if (hasProfile) {
+    recommendationReason =
+      "A strong starting point from the current program catalog.";
+  }
+
+  const profileMatchSummary = match.eligible
+    ? `This program has a **${match.score}% profile match** for ${profile.name}.`
+    : `This program matches some of your interests, but you are **not currently eligible**. ${match.eligibilityReason}`;
+  const shouldReturnRecommendation = Boolean(
+    shouldRecommend && (!hasProfile || mentionedProgram || match.eligible),
+  );
+  let responseSummary = "Here are the current program details.";
+
+  if (shouldRecommend && hasProfile) {
+    responseSummary = profileMatchSummary;
+  } else if (shouldRecommend) {
+    responseSummary =
+      "Here is a starting recommendation from the current program catalog. Share your profile for a personalized eligibility check.";
+  }
+
+  const reply = `## ${target.title}
+
+${responseSummary}
 
 - **Eligibility:** ${target.eligibleClassYears.join(", ") || "Not listed"}
 - **Period:** ${
     target.periods.join(", ") || "Not listed"
-  }${deadline ? `\n- **Deadline:** ${target.deadline}` : ""}
+  }${target.deadline ? `\n- **Deadline:** ${target.deadline}` : ""}
 - **Funding / compensation:** ${
     target.fundingTypes.length
       ? target.fundingTypes.join(", ")
       : "No compensation is listed yet."
   }
 
-${reasons ? `**Fit rationale:** ${reasons}.` : ""}
+${shouldRecommend && fitRationale ? `**${match.eligible ? "Fit rationale" : "Interest alignment"}:** ${fitRationale}.` : ""}
 
 This hub helps you find programs. To see the official program information, use **Access Database** or **View Program** in Lehigh360.`;
+
+  return {
+    reply,
+    recommendations: shouldReturnRecommendation
+      ? [{ slug: target.slug, reason: recommendationReason }]
+      : [],
+  };
 }
 
 async function askOpenAI(
   message: string,
   catalog: ChatProgramContext[],
   profile: StudentProfile,
-) {
+): Promise<AdvisorResult | null> {
   if (!process.env.OPENAI_API_KEY) {
     return null;
   }
@@ -244,6 +566,14 @@ Student message:
 ${message}`,
           },
         ],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "advisor_response",
+            strict: true,
+            schema: ADVISOR_RESPONSE_SCHEMA,
+          },
+        },
       }),
     });
 
@@ -251,20 +581,8 @@ ${message}`,
       return null;
     }
 
-    const payload = (await response.json()) as {
-      output_text?: string;
-      output?: Array<{
-        content?: Array<{ text?: string }>;
-      }>;
-    };
-
-    return (
-      payload.output_text ??
-      payload.output
-        ?.flatMap((item) => item.content ?? [])
-        .find((item) => item.text)?.text ??
-      null
-    );
+    const payload = (await response.json()) as OpenAIResponsePayload;
+    return parseAdvisorResult(extractResponseText(payload));
   } catch {
     return null;
   }
@@ -288,6 +606,7 @@ export async function POST(request: Request) {
 
   const profile = studentToProfile(student);
   let chatThreadId = body.threadId ?? null;
+  let confirmedChatThreadId: string | null = null;
 
   try {
     const existingThread = chatThreadId
@@ -317,28 +636,39 @@ export async function POST(request: Request) {
     await db.chatMessage.create({
       data: { chatThreadId, role: "USER", content: message },
     });
+    confirmedChatThreadId = thread.id;
   } catch {
     chatThreadId = body.threadId ?? null;
   }
 
   const { programs: programRecords } = await getProgramRecords("chat API");
   const programCatalog = programRecords.map(localProgramToContext);
-  const aiResponse =
+  const advisorResult =
     (await askOpenAI(message, programCatalog, profile)) ??
     localAdvisorResponse(message, profile, programRecords);
+  const recommendations = validateRecommendations(
+    advisorResult.recommendations,
+    programRecords,
+  );
 
   try {
-    if (chatThreadId) {
-      await db.chatMessage.create({
-        data: { chatThreadId, role: "ASSISTANT", content: aiResponse },
-      });
-    }
-  } catch {
-    // Chat should stay usable even if persistence is temporarily unavailable.
+    await persistAssistantResult({
+      student,
+      profile,
+      chatThreadId: confirmedChatThreadId,
+      reply: advisorResult.reply,
+      recommendations,
+    });
+  } catch (error) {
+    console.warn(
+      "[LU360_RECOMMENDATION_PERSISTENCE_FAILED] Unable to save the assistant response or its recommended programs.",
+      error,
+    );
   }
 
   return Response.json({
-    response: aiResponse,
+    response: advisorResult.reply,
     threadId: chatThreadId,
+    recommendations,
   });
 }
