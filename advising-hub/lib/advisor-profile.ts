@@ -14,41 +14,38 @@ function splitName(name?: string | null) {
 }
 
 export async function ensureAdvisorForUser(user: UserIdentity) {
-  const organization = await getOrCreateLehighOrganization();
   const { firstName, lastName } = splitName(user.name);
 
-  try {
-    return await prisma.advisor.upsert({
-      where: { userId: user.id },
-      update: {
-        email: user.email,
-        organizationId: organization.id,
-      },
-      create: {
+  const existingAdvisor = await prisma.advisor.findFirst({
+    where: {
+      OR: [
+        { userId: user.id },
+        { email: { equals: user.email, mode: "insensitive" } },
+      ],
+    },
+  });
+
+  if (existingAdvisor) {
+    return prisma.advisor.update({
+      where: { id: existingAdvisor.id },
+      data: {
         userId: user.id,
-        organizationId: organization.id,
         email: user.email,
-        firstName,
-        lastName,
+        firstName: existingAdvisor.firstName ?? firstName,
+        lastName: existingAdvisor.lastName ?? lastName,
       },
     });
-  } catch {
-    const existingByEmail = await prisma.advisor.findUnique({
-      where: { email: user.email },
-    });
-
-    if (existingByEmail) {
-      return prisma.advisor.update({
-        where: { id: existingByEmail.id },
-        data: {
-          userId: user.id,
-          organizationId: organization.id,
-          firstName: existingByEmail.firstName ?? firstName,
-          lastName: existingByEmail.lastName ?? lastName,
-        },
-      });
-    }
-
-    throw new Error(`Unable to create advisor profile for ${user.email}`);
   }
+
+  const organization = await getOrCreateLehighOrganization();
+
+  return prisma.advisor.create({
+    data: {
+      userId: user.id,
+      organizationId: organization.id,
+      email: user.email,
+      firstName,
+      lastName,
+    },
+  });
 }
