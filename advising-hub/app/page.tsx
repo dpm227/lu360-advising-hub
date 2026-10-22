@@ -12,6 +12,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma-client";
 import { getProgramRecords } from "@/lib/program-records";
 import type { ChatRecommendedPrograms } from "@/lib/chat-recommendations";
+import { MAX_CHAT_RECOMMENDATIONS } from "@/lib/chat-recommendation-policy";
 import { getServerSession } from "next-auth";
 
 async function getStudentProgramLists() {
@@ -48,6 +49,8 @@ async function getStudentProgramLists() {
       }),
       prisma.studentProgramRecommendation.findMany({
         where: { studentId: student.id, source: RecommendationSource.CHAT },
+        orderBy: [{ generatedAt: "desc" }, { id: "desc" }],
+        take: MAX_CHAT_RECOMMENDATIONS,
         select: {
           explanation: true,
           chatThreadId: true,

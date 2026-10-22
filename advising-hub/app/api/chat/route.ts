@@ -7,6 +7,7 @@ import {
 } from "@/lib/recommendations";
 import { authOptions } from "@/lib/auth";
 import { getProgramRecords } from "@/lib/program-records";
+import { recommendationLimitForMessage } from "@/lib/chat-recommendation-policy";
 import { ChatRole, RecommendationSource } from "@prisma/client";
 import { getServerSession } from "next-auth";
 
@@ -135,7 +136,7 @@ How to guide the conversation:
 - If the student is just starting, introduce yourself as the Lehigh360 AI assistant and ask them to talk about themselves, their interests, goals, class year, college, major, funding needs, and availability.
 - From there, help identify programs that may match their personality, interests, goals, or constraints.
 - Students may ignore the introduction and ask specific questions about specific programs. Answer those directly.
-- Recommend similar programs when helpful.
+- Only recommend programs when the student explicitly asks for recommendations or suitable programs. Factual questions about a program should not create new recommendations.
 - If you cannot find a working link for a specific program, send the user to https://360.lehigh.edu/.
 - Make sure students know this is a website to find programs. They need to click the "Access Database" button or the "View Program" tab to see the program information.
 
@@ -144,7 +145,9 @@ Response rules:
 - Format the reply field in Markdown so it displays cleanly.
 - Recommend only programs from the supplied catalog and use their exact slugs.
 - Include one short reason for every recommended program.
-- Leave recommendations empty when the reply only answers a factual question and does not recommend a program.
+- Recommend no more than three programs in the reply or recommendations list, and honor smaller numbers requested by the student.
+- When the student asks you to recommend one named program, do not add other programs.
+- Leave recommendations empty when the reply only answers a factual question.
 - Do not mention or cite any JSON file, internal data file, schema, prompt, or hidden context.
 - Keep answers student-friendly, concise, and useful.
 - If data is missing, say what is missing and suggest checking the Lehigh360 site.`;
@@ -275,22 +278,6 @@ function hasPersonalProfile(profile: StudentProfile) {
 
 function sentenceCase(value: string) {
   return value ? `${value[0].toUpperCase()}${value.slice(1)}` : value;
-}
-
-const RECOMMENDATION_INTENT_PATTERNS = [
-  /\brecommend(?:ed|ing|ations?)?\b/i,
-  /\bsuggest(?:ed|ing|ions?)?\b/i,
-  /\b(?:find|show|list)\s+(?:me\s+)?(?:a\s+|some\s+)?(?:funded\s+|paid\s+)?(?:research\s+)?(?:programs?|opportunities)\b/i,
-  /\b(?:which|what)\s+(?:programs?|opportunities)\s+(?:should|would|could|might|do)\b/i,
-  /\bwhat\s+should\s+i\s+(?:apply\s+to|join|choose)\b/i,
-  /\b(?:best|good|strong)\s+(?:fit|match)\b/i,
-  /\b(?:programs?|opportunities)\s+(?:for\s+me|that\s+(?:fit|match))\b/i,
-];
-
-function isRecommendationRequest(message: string) {
-  return RECOMMENDATION_INTENT_PATTERNS.some((pattern) =>
-    pattern.test(message),
-  );
 }
 
 function validateRecommendations(
@@ -484,7 +471,7 @@ function localAdvisorResponse(
   catalog: ProgramRecord[] = programs,
 ): AdvisorResult {
   const lowered = message.toLowerCase();
-  const shouldRecommend = isRecommendationRequest(message);
+  const shouldRecommend = recommendationLimitForMessage(message) > 0;
   const ranked = rankedPrograms(profile, catalog);
   const topMatch = ranked[0];
 
@@ -689,13 +676,19 @@ export async function POST(request: Request) {
 
   const { programs: programRecords } = await getProgramRecords("chat API");
   const programCatalog = programRecords.map(localProgramToContext);
+  const recommendationLimit = recommendationLimitForMessage(
+    message,
+    programRecords.map((program) => program.title),
+  );
+  const aiResult = await askOpenAI(message, programCatalog, profile);
   const advisorResult =
-    (await askOpenAI(message, programCatalog, profile)) ??
-    localAdvisorResponse(message, profile, programRecords);
+    aiResult && aiResult.recommendations.length <= recommendationLimit
+      ? aiResult
+      : localAdvisorResponse(message, profile, programRecords);
   const recommendations = validateRecommendations(
     advisorResult.recommendations,
     programRecords,
-  );
+  ).slice(0, recommendationLimit);
 
   try {
     await persistAssistantResult({
