@@ -355,6 +355,44 @@ select {
   text-transform: uppercase;
 }
 
+.chat-recommendation-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #efe5ff;
+  color: #4c2784;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.hero-program-match-label.chat-recommendation-badge {
+  max-width: calc(100% - 20px);
+  background: #efe5ff;
+  color: #4c2784;
+  white-space: normal;
+}
+
+.chat-recommendation-detail {
+  display: grid;
+  justify-items: start;
+  gap: 7px;
+}
+
+.chat-recommendation-detail p {
+  margin: 0;
+}
+
+.chat-recommendation-detail a,
+.recommendation-row a {
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .text-action {
   display: inline-flex;
   justify-content: flex-end;

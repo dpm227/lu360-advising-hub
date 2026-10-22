@@ -1,16 +1,20 @@
 import type { ProgramRecord } from "@/lib/program-data";
 import { ProgramActions } from "@/components/ProgramActions";
+import Link from "next/link";
+import type { ChatRecommendationInfo } from "@/lib/chat-recommendations";
 
 type ProgramCardProps = {
   program: ProgramRecord;
   compact?: boolean;
   initialSaved?: boolean;
+  chatRecommendation?: ChatRecommendationInfo;
 };
 
 export function ProgramCard({
   program,
   compact = false,
   initialSaved = false,
+  chatRecommendation,
 }: ProgramCardProps) {
   return (
     <article className={`program-card ${compact ? "compact" : ""}`}>
@@ -41,6 +45,19 @@ export function ProgramCard({
             {program.fundingTypes[0] ? <span>{program.fundingTypes[0]}</span> : null}
           </div>
           <h2>{program.title}</h2>
+          {chatRecommendation ? (
+            <div className="chat-recommendation-detail">
+              <span className="chat-recommendation-badge">Recommended by Chatbot</span>
+              {chatRecommendation.explanation ? (
+                <p>{chatRecommendation.explanation}</p>
+              ) : null}
+              {chatRecommendation.threadId ? (
+                <Link href={`/chat?thread=${encodeURIComponent(chatRecommendation.threadId)}`}>
+                  Continue chat
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
           <p>{program.description}</p>
         </div>
         <div className="chip-row">

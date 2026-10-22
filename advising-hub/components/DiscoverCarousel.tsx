@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import type { ProgramRecord } from "@/lib/program-data";
 import { ProgramActions } from "@/components/ProgramActions";
+import Link from "next/link";
+import type { ChatRecommendedPrograms } from "@/lib/chat-recommendations";
 
 export type FeaturedProgramMatch = {
   program: ProgramRecord;
@@ -12,6 +14,7 @@ export type FeaturedProgramMatch = {
 type DiscoverCarouselProps = {
   programs: FeaturedProgramMatch[];
   savedSlugs: string[];
+  chatRecommended: ChatRecommendedPrograms;
 };
 
 function formatDate(date?: string) {
@@ -27,12 +30,15 @@ function formatDate(date?: string) {
   }).format(new Date(`${date}T00:00:00Z`));
 }
 
-export function DiscoverCarousel({ programs, savedSlugs }: DiscoverCarouselProps) {
+export function DiscoverCarousel({ programs, savedSlugs, chatRecommended }: DiscoverCarouselProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [savedBySlug, setSavedBySlug] = useState<Record<string, boolean>>({});
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const selectedMatch = programs[selectedIndex];
   const selectedProgram = selectedMatch?.program;
+  const selectedChatRecommendation = selectedProgram
+    ? chatRecommended[selectedProgram.slug]
+    : undefined;
 
   function selectProgram(index: number) {
     const nextIndex = (index + programs.length) % programs.length;
@@ -89,7 +95,11 @@ export function DiscoverCarousel({ programs, savedSlugs }: DiscoverCarouselProps
               onClick={() => selectProgram(index)}
             >
               <span>{program.title}</span>
-              {score > 0 ? (
+              {chatRecommended[program.slug] ? (
+                <strong className="hero-program-match-label chat-recommendation-badge">
+                  Recommended by Chatbot
+                </strong>
+              ) : score > 0 ? (
                 <strong className="hero-program-match-label">{score}% Match</strong>
               ) : null}
             </button>
@@ -136,6 +146,19 @@ export function DiscoverCarousel({ programs, savedSlugs }: DiscoverCarouselProps
               />
             </div>
           </div>
+          {selectedChatRecommendation ? (
+            <div className="chat-recommendation-detail">
+              <span className="chat-recommendation-badge">Recommended by Chatbot</span>
+              {selectedChatRecommendation.explanation ? (
+                <p>{selectedChatRecommendation.explanation}</p>
+              ) : null}
+              {selectedChatRecommendation.threadId ? (
+                <Link href={`/chat?thread=${encodeURIComponent(selectedChatRecommendation.threadId)}`}>
+                  Continue chat
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
           <p>{selectedProgram.description}</p>
           <dl className="program-facts">
             <div>
