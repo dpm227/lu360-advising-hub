@@ -12,7 +12,6 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma-client";
 import { getProgramRecords } from "@/lib/program-records";
 import type { ChatRecommendedPrograms } from "@/lib/chat-recommendations";
-import { MAX_CHAT_RECOMMENDATIONS } from "@/lib/chat-recommendation-policy";
 import { getServerSession } from "next-auth";
 
 async function getStudentProgramLists() {
@@ -48,9 +47,12 @@ async function getStudentProgramLists() {
         include: { program: { select: { slug: true } } },
       }),
       prisma.studentProgramRecommendation.findMany({
-        where: { studentId: student.id, source: RecommendationSource.CHAT },
+        where: {
+          studentId: student.id,
+          source: RecommendationSource.CHAT,
+          isActive: true,
+        },
         orderBy: [{ generatedAt: "desc" }, { id: "desc" }],
-        take: MAX_CHAT_RECOMMENDATIONS,
         select: {
           explanation: true,
           chatThreadId: true,
@@ -122,7 +124,11 @@ export default async function Home() {
   const featuredPrograms = rankedVisiblePrograms
     .filter(({ program }) => chatRecommended[program.slug] || program.featured || program.imageUrl)
     .map(({ program, score }) => ({ program, score }));
-  const recommendations = rankedVisiblePrograms.slice(0, 3);
+  const chatMatches = rankedVisiblePrograms.filter(
+    ({ program }) => chatRecommended[program.slug],
+  );
+  const recommendations =
+    chatMatches.length > 0 ? chatMatches : rankedVisiblePrograms.slice(0, 3);
 
   return (
     <AppShell active="discover" title="Discover">

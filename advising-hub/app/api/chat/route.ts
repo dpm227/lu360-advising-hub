@@ -7,7 +7,11 @@ import {
 } from "@/lib/recommendations";
 import { authOptions } from "@/lib/auth";
 import { getProgramRecords } from "@/lib/program-records";
-import { recommendationLimitForMessage } from "@/lib/chat-recommendation-policy";
+import {
+  hasGeographicConstraint,
+  programMatchesRequestedRegion,
+  recommendationLimitForMessage,
+} from "@/lib/chat-recommendation-policy";
 import { ChatRole, RecommendationSource } from "@prisma/client";
 import { getServerSession } from "next-auth";
 
@@ -145,7 +149,7 @@ Response rules:
 - Format the reply field in Markdown so it displays cleanly.
 - Recommend only programs from the supplied catalog and use their exact slugs.
 - Include one short reason for every recommended program.
-- Recommend no more than three programs in the reply or recommendations list, and honor smaller numbers requested by the student.
+- Recommend only programs that fit the student's stated constraints, including location. Honor a requested number of programs; otherwise include the relevant matches without a fixed count.
 - When the student asks you to recommend one named program, do not add other programs.
 - Leave recommendations empty when the reply only answers a factual question.
 - Do not mention or cite any JSON file, internal data file, schema, prompt, or hidden context.
@@ -370,18 +374,16 @@ async function persistAssistantResult({
   chatThreadId,
   reply,
   recommendations,
+  replaceActiveRecommendations,
 }: {
   student: ChatStudent | null;
   profile: StudentProfile;
   chatThreadId: string | null;
   reply: string;
   recommendations: ChatRecommendation[];
+  replaceActiveRecommendations: boolean;
 }) {
-  const shouldSaveRecommendations = Boolean(
-    student && recommendations.length > 0,
-  );
-
-  if (!chatThreadId && !shouldSaveRecommendations) {
+  if (!chatThreadId && (!student || !replaceActiveRecommendations)) {
     return;
   }
 
@@ -392,7 +394,20 @@ async function persistAssistantResult({
       });
     }
 
-    if (!student || recommendations.length === 0) {
+    if (!student || !replaceActiveRecommendations) {
+      return;
+    }
+
+    await transaction.studentProgramRecommendation.updateMany({
+      where: {
+        studentId: student.id,
+        source: RecommendationSource.CHAT,
+        isActive: true,
+      },
+      data: { isActive: false },
+    });
+
+    if (recommendations.length === 0) {
       return;
     }
 
@@ -432,6 +447,7 @@ async function persistAssistantResult({
         },
         update: {
           explanation: recommendation.reason,
+          isActive: true,
           eligibilityPassed: eligibility.eligible,
           eligibilityReason: eligibility.reason,
           generatedAt,
@@ -443,6 +459,7 @@ async function persistAssistantResult({
           source: RecommendationSource.CHAT,
           chatThreadId,
           explanation: recommendation.reason,
+          isActive: true,
           eligibilityPassed: eligibility.eligible,
           eligibilityReason: eligibility.reason,
           generatedAt,
@@ -471,7 +488,11 @@ function localAdvisorResponse(
   catalog: ProgramRecord[] = programs,
 ): AdvisorResult {
   const lowered = message.toLowerCase();
-  const shouldRecommend = recommendationLimitForMessage(message) > 0;
+  const recommendationLimit = recommendationLimitForMessage(
+    message,
+    catalog.map((program) => program.title),
+  );
+  const shouldRecommend = recommendationLimit !== 0;
   const ranked = rankedPrograms(profile, catalog);
   const topMatch = ranked[0];
 
@@ -492,6 +513,43 @@ function localAdvisorResponse(
       ? catalog.find((program) => program.slug === "marcon-fellows")
       : undefined);
   const hasProfile = hasPersonalProfile(profile);
+
+  const hasLocationConstraint = hasGeographicConstraint(message);
+
+  if (
+    shouldRecommend &&
+    !mentionedProgram &&
+    (hasLocationConstraint || (recommendationLimit !== null && recommendationLimit > 1))
+  ) {
+    const matchingPrograms = rankedPrograms(
+      profile,
+      catalog.filter((program) =>
+        programMatchesRequestedRegion(message, program),
+      ),
+    )
+      .filter(({ eligible }) => !profile.classYear || !profile.college || eligible)
+      .slice(0, recommendationLimit ?? undefined);
+
+    if (matchingPrograms.length === 0) {
+      return {
+        reply: "I couldn't verify a program that fits your request and profile in the current catalog. Please check Lehigh360 for the latest requirements.",
+        recommendations: [],
+      };
+    }
+
+    return {
+      reply: `I found these programs in the current catalog that may fit your request:\n\n${matchingPrograms
+        .map(({ program, reasons }) =>
+          `- **${program.title}** — ${reasons.slice(0, 2).join("; ") || "check the official listing for details"}.`,
+        )
+        .join("\n")}\n\nCheck each official Lehigh360 listing for current details and eligibility.`,
+      recommendations: matchingPrograms.map(({ program, reasons }) => ({
+        slug: program.slug,
+        reason: reasons.slice(0, 2).join("; ") || "Matches the request.",
+      })),
+    };
+  }
+
   let match = topMatch;
 
   if (mentionedProgram) {
@@ -680,15 +738,29 @@ export async function POST(request: Request) {
     message,
     programRecords.map((program) => program.title),
   );
+  const isRecommendationRequest = recommendationLimit !== 0;
   const aiResult = await askOpenAI(message, programCatalog, profile);
+  const validatedAiRecommendations = aiResult
+    ? validateRecommendations(aiResult.recommendations, programRecords)
+    : [];
+  const aiRecommendationsAreValid = Boolean(
+    aiResult &&
+      validatedAiRecommendations.length === aiResult.recommendations.length &&
+      (recommendationLimit === null || validatedAiRecommendations.length <= recommendationLimit) &&
+      validatedAiRecommendations.every(({ program }) =>
+        programMatchesRequestedRegion(message, program),
+      ),
+  );
   const advisorResult =
-    aiResult && aiResult.recommendations.length <= recommendationLimit
+    aiResult && aiRecommendationsAreValid
       ? aiResult
       : localAdvisorResponse(message, profile, programRecords);
-  const recommendations = validateRecommendations(
-    advisorResult.recommendations,
-    programRecords,
-  ).slice(0, recommendationLimit);
+  const recommendations = isRecommendationRequest
+    ? validateRecommendations(advisorResult.recommendations, programRecords).slice(
+        0,
+        recommendationLimit ?? undefined,
+      )
+    : [];
 
   try {
     await persistAssistantResult({
@@ -697,6 +769,7 @@ export async function POST(request: Request) {
       chatThreadId: confirmedChatThreadId,
       reply: advisorResult.reply,
       recommendations,
+      replaceActiveRecommendations: isRecommendationRequest,
     });
   } catch (error) {
     console.warn(
