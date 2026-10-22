@@ -7,7 +7,7 @@ import {
 } from "@/lib/recommendations";
 import { authOptions } from "@/lib/auth";
 import { getProgramRecords } from "@/lib/program-records";
-import { RecommendationSource } from "@prisma/client";
+import { ChatRole, RecommendationSource } from "@prisma/client";
 import { getServerSession } from "next-auth";
 
 type ChatRequest = {
@@ -213,6 +213,52 @@ async function getSessionStudent() {
       statuses: true,
     },
   });
+}
+
+export async function GET(request: Request) {
+  const threadId = new URL(request.url).searchParams.get("threadId")?.trim();
+
+  if (!threadId) {
+    return Response.json({ error: "Thread ID is required." }, { status: 400 });
+  }
+
+  try {
+    const student = await getSessionStudent();
+
+    if (!student) {
+      return Response.json({ error: "Authentication is required." }, { status: 401 });
+    }
+
+    const thread = await db.chatThread.findFirst({
+      where: { id: threadId, studentId: student.id },
+      select: {
+        id: true,
+        messages: {
+          where: { role: { in: [ChatRole.USER, ChatRole.ASSISTANT] } },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          select: { id: true, role: true, content: true },
+        },
+      },
+    });
+
+    if (!thread) {
+      return Response.json({ error: "Conversation not found." }, { status: 404 });
+    }
+
+    return Response.json({
+      threadId: thread.id,
+      messages: thread.messages.map((message) => ({
+        id: message.id,
+        role: message.role === ChatRole.USER ? "user" : "assistant",
+        content: message.content,
+      })),
+    });
+  } catch {
+    return Response.json(
+      { error: "Unable to load the conversation." },
+      { status: 503 },
+    );
+  }
 }
 
 function hasPersonalProfile(profile: StudentProfile) {
