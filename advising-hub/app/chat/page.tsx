@@ -41,6 +41,7 @@ function buildChatContext(profile: StudentProfile, isSignedIn: boolean) {
     isSignedIn,
     profileName: profile.name,
     summary: profileSummary(profile, isSignedIn),
+    savedSlugs: [],
   } satisfies ChatPageContext;
 }
 
@@ -57,6 +58,7 @@ async function getChatContext() {
       opportunityInterests: { include: { opportunityType: true } },
       keywords: true,
       statuses: true,
+      savedPrograms: { include: { program: { select: { slug: true } } } },
     },
   });
 
@@ -82,7 +84,10 @@ async function getChatContext() {
     statuses: student.statuses.map((status) => status.statusName),
   };
 
-  return buildChatContext(profile, true);
+  return {
+    ...buildChatContext(profile, true),
+    savedSlugs: student.savedPrograms.map(({ program }) => program.slug),
+  };
 }
 
 type ChatPageProps = {

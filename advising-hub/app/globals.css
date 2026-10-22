@@ -833,6 +833,34 @@ select {
   padding: 12px 14px;
 }
 
+.message-group {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.message-group.user {
+  justify-items: end;
+}
+
+.message-group .message {
+  max-width: min(84%, 520px);
+}
+
+.chat-program-cards {
+  width: min(100%, 620px);
+  display: grid;
+  gap: 10px;
+}
+
+.chat-program-cards .program-card.compact {
+  grid-template-columns: minmax(90px, 0.28fr) minmax(0, 1fr);
+}
+
+.chat-program-cards .program-card.compact .program-image {
+  min-height: 150px;
+}
+
 .markdown-message {
   display: grid;
   gap: 8px;
@@ -1594,6 +1622,10 @@ select {
   .profile-fields,
   .program-card.compact,
   .profile-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-program-cards .program-card.compact {
     grid-template-columns: 1fr;
   }
 

@@ -8,6 +8,9 @@ type ProgramCardProps = {
   compact?: boolean;
   initialSaved?: boolean;
   chatRecommendation?: ChatRecommendationInfo;
+  hideChatAction?: boolean;
+  saved?: boolean;
+  onSavedChange?: (saved: boolean) => void;
 };
 
 export function ProgramCard({
@@ -15,6 +18,9 @@ export function ProgramCard({
   compact = false,
   initialSaved = false,
   chatRecommendation,
+  hideChatAction = false,
+  saved,
+  onSavedChange,
 }: ProgramCardProps) {
   return (
     <article className={`program-card ${compact ? "compact" : ""}`}>
@@ -70,6 +76,9 @@ export function ProgramCard({
         <ProgramActions
           applicationUrl={program.applicationUrl}
           initialSaved={initialSaved}
+          saved={saved}
+          onSavedChange={onSavedChange}
+          hideChatAction={hideChatAction}
           programName={program.title}
           programSlug={program.slug}
           sourceUrl={program.sourceUrl}

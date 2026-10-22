@@ -10,18 +10,21 @@ import {
 } from "react";
 import { AppShell } from "@/components/AppShell";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
-import { programs } from "@/lib/program-data";
+import { ProgramCard } from "@/components/ProgramCard";
+import { programs, type ProgramRecord } from "@/lib/program-data";
 
 type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  programs?: ProgramRecord[];
 };
 
 export type ChatPageContext = {
   isSignedIn: boolean;
   profileName: string;
   summary: string;
+  savedSlugs: string[];
 };
 
 type AdvisorChatProps = {
@@ -88,6 +91,7 @@ export function AdvisorChat({
   const [input, setInput] = useState(initialPrompt);
   const [isLoadingThread, setIsLoadingThread] = useState(Boolean(initialThreadId));
   const [isSending, setIsSending] = useState(false);
+  const [savedBySlug, setSavedBySlug] = useState<Record<string, boolean>>({});
   const didAutoSendRef = useRef(false);
 
   const quickPrompts = useMemo(
@@ -125,7 +129,16 @@ export function AdvisorChat({
         const payload = (await response.json()) as {
           response?: string;
           threadId?: string;
+          recommendations?: Array<{ program: ProgramRecord; reason: string }>;
         };
+
+        if (!response.ok) {
+          throw new Error("Unable to send message");
+        }
+
+        const recommendedPrograms = payload.recommendations
+          ?.map((recommendation) => recommendation.program)
+          .filter((program): program is ProgramRecord => Boolean(program?.slug));
 
         setThreadId(payload.threadId ?? threadId);
         setMessages((current) => [
@@ -134,6 +147,7 @@ export function AdvisorChat({
             id: crypto.randomUUID(),
             role: "assistant",
             content: payload.response ?? fallbackReply(trimmed),
+            programs: recommendedPrograms,
           },
         ]);
       } catch {
@@ -243,8 +257,32 @@ export function AdvisorChat({
         <div className="chat-panel">
           <div className="messages" aria-live="polite">
             {messages.map((message) => (
-              <div className={`message ${message.role}`} key={message.id}>
-                <MarkdownMessage content={message.content} />
+              <div className={`message-group ${message.role}`} key={message.id}>
+                <div className={`message ${message.role}`}>
+                  <MarkdownMessage content={message.content} />
+                </div>
+                {message.programs?.length ? (
+                  <div className="chat-program-cards">
+                    {message.programs.map((program) => (
+                      <ProgramCard
+                        compact
+                        hideChatAction
+                        key={program.slug}
+                        program={program}
+                        saved={
+                          savedBySlug[program.slug] ??
+                          context.savedSlugs.includes(program.slug)
+                        }
+                        onSavedChange={(saved) =>
+                          setSavedBySlug((current) => ({
+                            ...current,
+                            [program.slug]: saved,
+                          }))
+                        }
+                      />
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ))}
             {isLoadingThread ? (
