@@ -13,11 +13,7 @@ const sections: LegalSection[] = [
     title: "Introduction",
     content: (
       <>
-        <p>
-          Welcome to the Lehigh360 Advising Hub and AI Chat Assistant
-          (&quot;Lehigh360,&quot; &quot;the Application,&quot; &quot;we,&quot;
-          &quot;our,&quot; or &quot;us&quot;).
-        </p>
+        <p>Welcome to the Lehigh360 AI Chat Assistant.</p>
         <p>
           Lehigh360 is designed to help students discover university programs,
           extracurricular activities, research opportunities, and other

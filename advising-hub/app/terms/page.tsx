@@ -5,7 +5,7 @@ import { LegalPage, type LegalSection } from "@/components/LegalPage";
 export const metadata: Metadata = {
   title: "Terms and Conditions | Lehigh360",
   description:
-    "Terms governing use of the Lehigh360 Advising Hub and AI Chat Assistant.",
+    "Terms governing use of the Lehigh360 AI Chat Assistant.",
 };
 
 const sections: LegalSection[] = [
@@ -14,16 +14,11 @@ const sections: LegalSection[] = [
     title: "Acceptance of Terms",
     content: (
       <>
+        <p>Welcome to the Lehigh360 AI Chat Assistant.</p>
         <p>
-          Welcome to the Lehigh360 Advising Hub and AI Chat Assistant
-          (&quot;Lehigh360,&quot; &quot;the Application,&quot; &quot;the
-          Service,&quot; &quot;we,&quot; &quot;our,&quot; or &quot;us&quot;).
-        </p>
-        <p>
-          These Terms and Conditions (&quot;Terms&quot;) govern your access to
-          and use of the Application, including its AI Chat Assistant,
-          personalized recommendation tools, student profiles, and related
-          features.
+          These Terms and Conditions govern your access to and use of the
+          AI Chat Assistant, personalized recommendation tools, student profiles,
+          and related features.
         </p>
         <p>
           By accessing or using the Application, you agree to these Terms and
@@ -441,8 +436,8 @@ const sections: LegalSection[] = [
       <>
         <p>
           These Terms are governed by the laws of the Commonwealth of
-          Pennsylvania, without regard to conflict-of-law principles, except where
-          otherwise required by applicable law.
+          Pennsylvania, without regard to conflict-of-law principles, except
+          where otherwise required by applicable law.
         </p>
         <p>
           Any disputes arising from these Terms will be handled in accordance

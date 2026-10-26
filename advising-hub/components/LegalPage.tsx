@@ -17,7 +17,7 @@ export function LegalPage({ title, sections }: LegalPageProps) {
     <AppShell title={title} hidePageHeader>
       <article className="legal-page">
         <header className="legal-header">
-          <p className="eyebrow">Lehigh360 Advising Hub &amp; AI Chat Assistant</p>
+          <p className="eyebrow">Lehigh360 AI Chat Assistant</p>
           <h1>{title}</h1>
           <p className="legal-date">
             Effective Date: <time dateTime="2026-10-26">October 26, 2026</time>
@@ -47,7 +47,9 @@ export function LegalPage({ title, sections }: LegalPageProps) {
                 className="legal-section"
                 key={section.id}
               >
-                <h2 id={section.id}>{index + 1}. {section.title}</h2>
+                <h2 id={section.id}>
+                  {index + 1}. {section.title}
+                </h2>
                 {section.content}
               </section>
             ))}
