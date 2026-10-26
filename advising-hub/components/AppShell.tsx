@@ -4,7 +4,7 @@ import { AuthButton } from "@/components/AuthButton";
 import { ProfileNavIcon } from "@/components/ProfileNavIcon";
 
 type AppShellProps = {
-  active: "discover" | "chat" | "profile";
+  active?: "discover" | "chat" | "profile";
   title: string;
   hidePageHeader?: boolean;
   children: ReactNode;
@@ -66,7 +66,7 @@ export function AppShell({
   hidePageHeader = false,
   children,
 }: AppShellProps) {
-  const activeItem = navItems.find((item) => item.id === active) ?? navItems[0];
+  const activeItem = navItems.find((item) => item.id === active);
 
   return (
     <main className="site-shell">
@@ -95,8 +95,8 @@ export function AppShell({
         <details className="mobile-nav-selector">
           <summary>
             <span className="mobile-nav-current">
-              <NavIcon type={activeItem.icon} />
-              <span>{activeItem.label}</span>
+              {activeItem ? <NavIcon type={activeItem.icon} /> : null}
+              <span>{activeItem?.label ?? "Navigate"}</span>
             </span>
             <svg
               aria-hidden="true"
