@@ -355,6 +355,44 @@ select {
   text-transform: uppercase;
 }
 
+.chat-recommendation-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #efe5ff;
+  color: #4c2784;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.hero-program-match-label.chat-recommendation-badge {
+  max-width: calc(100% - 20px);
+  background: #efe5ff;
+  color: #4c2784;
+  white-space: normal;
+}
+
+.chat-recommendation-detail {
+  display: grid;
+  justify-items: start;
+  gap: 7px;
+}
+
+.chat-recommendation-detail p {
+  margin: 0;
+}
+
+.chat-recommendation-detail a,
+.recommendation-row a {
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .text-action {
   display: inline-flex;
   justify-content: flex-end;
@@ -793,6 +831,34 @@ select {
   max-width: min(84%, 520px);
   border-radius: 8px;
   padding: 12px 14px;
+}
+
+.message-group {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.message-group.user {
+  justify-items: end;
+}
+
+.message-group .message {
+  max-width: min(84%, 520px);
+}
+
+.chat-program-cards {
+  width: min(100%, 620px);
+  display: grid;
+  gap: 10px;
+}
+
+.chat-program-cards .program-card.compact {
+  grid-template-columns: minmax(90px, 0.28fr) minmax(0, 1fr);
+}
+
+.chat-program-cards .program-card.compact .program-image {
+  min-height: 150px;
 }
 
 .markdown-message {
@@ -1556,6 +1622,10 @@ select {
   .profile-fields,
   .program-card.compact,
   .profile-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-program-cards .program-card.compact {
     grid-template-columns: 1fr;
   }
 

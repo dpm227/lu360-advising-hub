@@ -10,24 +10,33 @@ import {
 } from "react";
 import { AppShell } from "@/components/AppShell";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
-import { programs } from "@/lib/program-data";
+import { ProgramCard } from "@/components/ProgramCard";
+import { programs, type ProgramRecord } from "@/lib/program-data";
 
 type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  programs?: ProgramRecord[];
 };
 
 export type ChatPageContext = {
   isSignedIn: boolean;
   profileName: string;
   summary: string;
+  savedSlugs: string[];
 };
 
 type AdvisorChatProps = {
   context: ChatPageContext;
   initialPrompt?: string;
   autoSendInitialPrompt?: boolean;
+  initialThreadId?: string;
+};
+
+type ChatThreadResponse = {
+  threadId: string;
+  messages: Message[];
 };
 
 function createStarterMessages(context: ChatPageContext): Message[] {
@@ -73,13 +82,16 @@ export function AdvisorChat({
   context,
   initialPrompt = "",
   autoSendInitialPrompt = false,
+  initialThreadId,
 }: AdvisorChatProps) {
   const [messages, setMessages] = useState<Message[]>(() =>
     createStarterMessages(context),
   );
   const [threadId, setThreadId] = useState<string | null>(null);
   const [input, setInput] = useState(initialPrompt);
+  const [isLoadingThread, setIsLoadingThread] = useState(Boolean(initialThreadId));
   const [isSending, setIsSending] = useState(false);
+  const [savedBySlug, setSavedBySlug] = useState<Record<string, boolean>>({});
   const didAutoSendRef = useRef(false);
 
   const quickPrompts = useMemo(
@@ -94,7 +106,7 @@ export function AdvisorChat({
   const sendMessage = useCallback(
     async (message: string) => {
       const trimmed = message.trim();
-      if (!trimmed || isSending) {
+      if (!trimmed || isLoadingThread || isSending) {
         return;
       }
 
@@ -117,7 +129,16 @@ export function AdvisorChat({
         const payload = (await response.json()) as {
           response?: string;
           threadId?: string;
+          recommendations?: Array<{ program: ProgramRecord; reason: string }>;
         };
+
+        if (!response.ok) {
+          throw new Error("Unable to send message");
+        }
+
+        const recommendedPrograms = payload.recommendations
+          ?.map((recommendation) => recommendation.program)
+          .filter((program): program is ProgramRecord => Boolean(program?.slug));
 
         setThreadId(payload.threadId ?? threadId);
         setMessages((current) => [
@@ -126,6 +147,7 @@ export function AdvisorChat({
             id: crypto.randomUUID(),
             role: "assistant",
             content: payload.response ?? fallbackReply(trimmed),
+            programs: recommendedPrograms,
           },
         ]);
       } catch {
@@ -141,7 +163,7 @@ export function AdvisorChat({
         setIsSending(false);
       }
     },
-    [isSending, threadId],
+    [isLoadingThread, isSending, threadId],
   );
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -150,9 +172,62 @@ export function AdvisorChat({
   }
 
   useEffect(() => {
+    if (!initialThreadId) {
+      return;
+    }
+
+    const requestedThreadId = initialThreadId;
+    const controller = new AbortController();
+
+    async function loadThread() {
+      setIsLoadingThread(true);
+
+      try {
+        const response = await fetch(
+          `/api/chat?threadId=${encodeURIComponent(requestedThreadId)}`,
+          { signal: controller.signal },
+        );
+
+        if (!response.ok) {
+          throw new Error("Conversation unavailable");
+        }
+
+        const payload = (await response.json()) as ChatThreadResponse;
+
+        if (payload.threadId !== requestedThreadId || !Array.isArray(payload.messages)) {
+          throw new Error("Invalid conversation response");
+        }
+
+        setThreadId(payload.threadId);
+        setMessages(payload.messages);
+      } catch {
+        if (!controller.signal.aborted) {
+          setThreadId(null);
+          setMessages([
+            ...createStarterMessages(context),
+            {
+              id: "thread-load-error",
+              role: "assistant",
+              content: "I couldn't load that conversation. You can start a new chat here.",
+            },
+          ]);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoadingThread(false);
+        }
+      }
+    }
+
+    void loadThread();
+    return () => controller.abort();
+  }, [context, initialThreadId]);
+
+  useEffect(() => {
     if (
       !autoSendInitialPrompt ||
       didAutoSendRef.current ||
+      isLoadingThread ||
       !initialPrompt.trim()
     ) {
       return;
@@ -160,7 +235,7 @@ export function AdvisorChat({
 
     didAutoSendRef.current = true;
     void sendMessage(initialPrompt);
-  }, [autoSendInitialPrompt, initialPrompt, sendMessage]);
+  }, [autoSendInitialPrompt, initialPrompt, isLoadingThread, sendMessage]);
 
   return (
     <AppShell active="chat" title="Advisor Chat" hidePageHeader>
@@ -182,10 +257,39 @@ export function AdvisorChat({
         <div className="chat-panel">
           <div className="messages" aria-live="polite">
             {messages.map((message) => (
-              <div className={`message ${message.role}`} key={message.id}>
-                <MarkdownMessage content={message.content} />
+              <div className={`message-group ${message.role}`} key={message.id}>
+                <div className={`message ${message.role}`}>
+                  <MarkdownMessage content={message.content} />
+                </div>
+                {message.programs?.length ? (
+                  <div className="chat-program-cards">
+                    {message.programs.map((program) => (
+                      <ProgramCard
+                        compact
+                        hideChatAction
+                        key={program.slug}
+                        program={program}
+                        saved={
+                          savedBySlug[program.slug] ??
+                          context.savedSlugs.includes(program.slug)
+                        }
+                        onSavedChange={(saved) =>
+                          setSavedBySlug((current) => ({
+                            ...current,
+                            [program.slug]: saved,
+                          }))
+                        }
+                      />
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ))}
+            {isLoadingThread ? (
+              <div className="message assistant pending">
+                <MarkdownMessage content="Loading conversation..." />
+              </div>
+            ) : null}
             {isSending ? (
               <div className="message assistant pending">
                 <MarkdownMessage content="Checking program requirements..." />
@@ -196,6 +300,7 @@ export function AdvisorChat({
           <div className="quick-prompts">
             {quickPrompts.map((prompt) => (
               <button
+                disabled={isLoadingThread || isSending}
                 type="button"
                 key={prompt}
                 onClick={() => void sendMessage(prompt)}
@@ -208,11 +313,12 @@ export function AdvisorChat({
           <form className="composer" onSubmit={handleSubmit}>
             <input
               aria-label="Message"
+              disabled={isLoadingThread}
               placeholder="Ask about fit, deadlines, funding, credit..."
               value={input}
               onChange={(event) => setInput(event.target.value)}
             />
-            <button type="submit" disabled={isSending || input.trim() === ""}>
+            <button type="submit" disabled={isLoadingThread || isSending || input.trim() === ""}>
               Send
             </button>
           </form>

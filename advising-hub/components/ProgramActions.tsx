@@ -12,6 +12,7 @@ type ProgramActionsProps = {
   initialSaved?: boolean;
   saved?: boolean;
   onSavedChange?: (saved: boolean) => void;
+  hideChatAction?: boolean;
 };
 
 type ProgramAction = "save" | "unsave";
@@ -24,6 +25,7 @@ export function ProgramActions({
   initialSaved = false,
   saved: savedOverride,
   onSavedChange,
+  hideChatAction = false,
 }: ProgramActionsProps) {
   const { status } = useSession();
   const [localSaved, setSaved] = useState(initialSaved);
@@ -83,12 +85,14 @@ export function ProgramActions({
           Apply
         </a>
       ) : null}
-      <Link
-        className="program-action program-action-link"
-        href={`/chat?prompt=${encodeURIComponent(`Please give me an overview of ${programName}, including eligibility, funding, deadlines, and how well it may fit my profile.`)}&autoSend=1`}
-      >
-        Chat
-      </Link>
+      {!hideChatAction ? (
+        <Link
+          className="program-action program-action-link"
+          href={`/chat?prompt=${encodeURIComponent(`Please give me an overview of ${programName}, including eligibility, funding, deadlines, and how well it may fit my profile.`)}&autoSend=1`}
+        >
+          Chat
+        </Link>
+      ) : null}
       <a
         className="program-action program-action-link"
         href={sourceUrl}

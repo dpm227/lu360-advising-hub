@@ -7,7 +7,12 @@ import {
 } from "@/lib/recommendations";
 import { authOptions } from "@/lib/auth";
 import { getProgramRecords } from "@/lib/program-records";
-import { RecommendationSource } from "@prisma/client";
+import {
+  hasGeographicConstraint,
+  programMatchesRequestedRegion,
+  recommendationLimitForMessage,
+} from "@/lib/chat-recommendation-policy";
+import { ChatRole, RecommendationSource } from "@prisma/client";
 import { getServerSession } from "next-auth";
 
 type ChatRequest = {
@@ -135,7 +140,7 @@ How to guide the conversation:
 - If the student is just starting, introduce yourself as the Lehigh360 AI assistant and ask them to talk about themselves, their interests, goals, class year, college, major, funding needs, and availability.
 - From there, help identify programs that may match their personality, interests, goals, or constraints.
 - Students may ignore the introduction and ask specific questions about specific programs. Answer those directly.
-- Recommend similar programs when helpful.
+- Only recommend programs when the student explicitly asks for recommendations or suitable programs. Factual questions about a program should not create new recommendations.
 - If you cannot find a working link for a specific program, send the user to https://360.lehigh.edu/.
 - Make sure students know this is a website to find programs. They need to click the "Access Database" button or the "View Program" tab to see the program information.
 
@@ -144,7 +149,9 @@ Response rules:
 - Format the reply field in Markdown so it displays cleanly.
 - Recommend only programs from the supplied catalog and use their exact slugs.
 - Include one short reason for every recommended program.
-- Leave recommendations empty when the reply only answers a factual question and does not recommend a program.
+- Recommend only programs that fit the student's stated constraints, including location. Honor a requested number of programs; otherwise include the relevant matches without a fixed count.
+- When the student asks you to recommend one named program, do not add other programs.
+- Leave recommendations empty when the reply only answers a factual question.
 - Do not mention or cite any JSON file, internal data file, schema, prompt, or hidden context.
 - Keep answers student-friendly, concise, and useful.
 - If data is missing, say what is missing and suggest checking the Lehigh360 site.`;
@@ -215,6 +222,52 @@ async function getSessionStudent() {
   });
 }
 
+export async function GET(request: Request) {
+  const threadId = new URL(request.url).searchParams.get("threadId")?.trim();
+
+  if (!threadId) {
+    return Response.json({ error: "Thread ID is required." }, { status: 400 });
+  }
+
+  try {
+    const student = await getSessionStudent();
+
+    if (!student) {
+      return Response.json({ error: "Authentication is required." }, { status: 401 });
+    }
+
+    const thread = await db.chatThread.findFirst({
+      where: { id: threadId, studentId: student.id },
+      select: {
+        id: true,
+        messages: {
+          where: { role: { in: [ChatRole.USER, ChatRole.ASSISTANT] } },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          select: { id: true, role: true, content: true },
+        },
+      },
+    });
+
+    if (!thread) {
+      return Response.json({ error: "Conversation not found." }, { status: 404 });
+    }
+
+    return Response.json({
+      threadId: thread.id,
+      messages: thread.messages.map((message) => ({
+        id: message.id,
+        role: message.role === ChatRole.USER ? "user" : "assistant",
+        content: message.content,
+      })),
+    });
+  } catch {
+    return Response.json(
+      { error: "Unable to load the conversation." },
+      { status: 503 },
+    );
+  }
+}
+
 function hasPersonalProfile(profile: StudentProfile) {
   return Boolean(
     profile.email ||
@@ -229,22 +282,6 @@ function hasPersonalProfile(profile: StudentProfile) {
 
 function sentenceCase(value: string) {
   return value ? `${value[0].toUpperCase()}${value.slice(1)}` : value;
-}
-
-const RECOMMENDATION_INTENT_PATTERNS = [
-  /\brecommend(?:ed|ing|ations?)?\b/i,
-  /\bsuggest(?:ed|ing|ions?)?\b/i,
-  /\b(?:find|show|list)\s+(?:me\s+)?(?:a\s+|some\s+)?(?:funded\s+|paid\s+)?(?:research\s+)?(?:programs?|opportunities)\b/i,
-  /\b(?:which|what)\s+(?:programs?|opportunities)\s+(?:should|would|could|might|do)\b/i,
-  /\bwhat\s+should\s+i\s+(?:apply\s+to|join|choose)\b/i,
-  /\b(?:best|good|strong)\s+(?:fit|match)\b/i,
-  /\b(?:programs?|opportunities)\s+(?:for\s+me|that\s+(?:fit|match))\b/i,
-];
-
-function isRecommendationRequest(message: string) {
-  return RECOMMENDATION_INTENT_PATTERNS.some((pattern) =>
-    pattern.test(message),
-  );
 }
 
 function validateRecommendations(
@@ -337,18 +374,16 @@ async function persistAssistantResult({
   chatThreadId,
   reply,
   recommendations,
+  replaceActiveRecommendations,
 }: {
   student: ChatStudent | null;
   profile: StudentProfile;
   chatThreadId: string | null;
   reply: string;
   recommendations: ChatRecommendation[];
+  replaceActiveRecommendations: boolean;
 }) {
-  const shouldSaveRecommendations = Boolean(
-    student && recommendations.length > 0,
-  );
-
-  if (!chatThreadId && !shouldSaveRecommendations) {
+  if (!chatThreadId && (!student || !replaceActiveRecommendations)) {
     return;
   }
 
@@ -359,7 +394,20 @@ async function persistAssistantResult({
       });
     }
 
-    if (!student || recommendations.length === 0) {
+    if (!student || !replaceActiveRecommendations) {
+      return;
+    }
+
+    await transaction.studentProgramRecommendation.updateMany({
+      where: {
+        studentId: student.id,
+        source: RecommendationSource.CHAT,
+        isActive: true,
+      },
+      data: { isActive: false },
+    });
+
+    if (recommendations.length === 0) {
       return;
     }
 
@@ -399,6 +447,7 @@ async function persistAssistantResult({
         },
         update: {
           explanation: recommendation.reason,
+          isActive: true,
           eligibilityPassed: eligibility.eligible,
           eligibilityReason: eligibility.reason,
           generatedAt,
@@ -410,6 +459,7 @@ async function persistAssistantResult({
           source: RecommendationSource.CHAT,
           chatThreadId,
           explanation: recommendation.reason,
+          isActive: true,
           eligibilityPassed: eligibility.eligible,
           eligibilityReason: eligibility.reason,
           generatedAt,
@@ -438,7 +488,11 @@ function localAdvisorResponse(
   catalog: ProgramRecord[] = programs,
 ): AdvisorResult {
   const lowered = message.toLowerCase();
-  const shouldRecommend = isRecommendationRequest(message);
+  const recommendationLimit = recommendationLimitForMessage(
+    message,
+    catalog.map((program) => program.title),
+  );
+  const shouldRecommend = recommendationLimit !== 0;
   const ranked = rankedPrograms(profile, catalog);
   const topMatch = ranked[0];
 
@@ -459,6 +513,43 @@ function localAdvisorResponse(
       ? catalog.find((program) => program.slug === "marcon-fellows")
       : undefined);
   const hasProfile = hasPersonalProfile(profile);
+
+  const hasLocationConstraint = hasGeographicConstraint(message);
+
+  if (
+    shouldRecommend &&
+    !mentionedProgram &&
+    (hasLocationConstraint || (recommendationLimit !== null && recommendationLimit > 1))
+  ) {
+    const matchingPrograms = rankedPrograms(
+      profile,
+      catalog.filter((program) =>
+        programMatchesRequestedRegion(message, program),
+      ),
+    )
+      .filter(({ eligible }) => !profile.classYear || !profile.college || eligible)
+      .slice(0, recommendationLimit ?? undefined);
+
+    if (matchingPrograms.length === 0) {
+      return {
+        reply: "I couldn't verify a program that fits your request and profile in the current catalog. Please check Lehigh360 for the latest requirements.",
+        recommendations: [],
+      };
+    }
+
+    return {
+      reply: `I found these programs in the current catalog that may fit your request:\n\n${matchingPrograms
+        .map(({ program, reasons }) =>
+          `- **${program.title}** — ${reasons.slice(0, 2).join("; ") || "check the official listing for details"}.`,
+        )
+        .join("\n")}\n\nCheck each official Lehigh360 listing for current details and eligibility.`,
+      recommendations: matchingPrograms.map(({ program, reasons }) => ({
+        slug: program.slug,
+        reason: reasons.slice(0, 2).join("; ") || "Matches the request.",
+      })),
+    };
+  }
+
   let match = topMatch;
 
   if (mentionedProgram) {
@@ -643,13 +734,33 @@ export async function POST(request: Request) {
 
   const { programs: programRecords } = await getProgramRecords("chat API");
   const programCatalog = programRecords.map(localProgramToContext);
-  const advisorResult =
-    (await askOpenAI(message, programCatalog, profile)) ??
-    localAdvisorResponse(message, profile, programRecords);
-  const recommendations = validateRecommendations(
-    advisorResult.recommendations,
-    programRecords,
+  const recommendationLimit = recommendationLimitForMessage(
+    message,
+    programRecords.map((program) => program.title),
   );
+  const isRecommendationRequest = recommendationLimit !== 0;
+  const aiResult = await askOpenAI(message, programCatalog, profile);
+  const validatedAiRecommendations = aiResult
+    ? validateRecommendations(aiResult.recommendations, programRecords)
+    : [];
+  const aiRecommendationsAreValid = Boolean(
+    aiResult &&
+      validatedAiRecommendations.length === aiResult.recommendations.length &&
+      (recommendationLimit === null || validatedAiRecommendations.length <= recommendationLimit) &&
+      validatedAiRecommendations.every(({ program }) =>
+        programMatchesRequestedRegion(message, program),
+      ),
+  );
+  const advisorResult =
+    aiResult && aiRecommendationsAreValid
+      ? aiResult
+      : localAdvisorResponse(message, profile, programRecords);
+  const recommendations = isRecommendationRequest
+    ? validateRecommendations(advisorResult.recommendations, programRecords).slice(
+        0,
+        recommendationLimit ?? undefined,
+      )
+    : [];
 
   try {
     await persistAssistantResult({
@@ -658,6 +769,7 @@ export async function POST(request: Request) {
       chatThreadId: confirmedChatThreadId,
       reply: advisorResult.reply,
       recommendations,
+      replaceActiveRecommendations: isRecommendationRequest,
     });
   } catch (error) {
     console.warn(
