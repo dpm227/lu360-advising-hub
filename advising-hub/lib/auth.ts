@@ -16,11 +16,9 @@ function isAdvisorEmail(email: string) {
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
-
   session: {
     strategy: "database",
   },
-
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID ?? "",
@@ -28,7 +26,6 @@ export const authOptions: NextAuthOptions = {
       allowDangerousEmailAccountLinking: true,
     }),
   ],
-
   callbacks: {
     async session({ session, user }) {
       if (session.user) {
@@ -39,52 +36,25 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-
   pages: {
     signIn: "/signin",
   },
-
   events: {
+    // The sign-in event receives the persisted user, including on first sign-in.
     async signIn({ user }) {
       if (!user.email) {
-        throw new Error("An email address is required to sign in.");
+        throw new Error("An email address is required to set up a student profile.");
       }
-
       const identity = {
         id: user.id,
         email: user.email,
         name: user.name ?? null,
       };
-
-      const existingUser = await prisma.user.findUnique({
-        where: { id: user.id },
-        select: { role: true },
-      });
-
-      if (existingUser?.role === "ADMIN") {
-        return;
-      }
-
-      const seededAdvisor = await prisma.advisor.findFirst({
-        where: {
-          OR: [
-            { userId: user.id },
-            { email: { equals: user.email, mode: "insensitive" } },
-          ],
-        },
-        select: { id: true },
-      });
-
-      if (
-        isAdvisorEmail(user.email) ||
-        seededAdvisor !== null ||
-        existingUser?.role === "ADVISOR"
-      ) {
+      if (isAdvisorEmail(user.email)) {
         await prisma.user.update({
           where: { id: user.id },
           data: { role: "ADVISOR" },
         });
-
         await ensureAdvisorForUser(identity);
         return;
       }
