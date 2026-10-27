@@ -72,3 +72,36 @@ export async function assertAdvisorCanViewStudent(
     throw new AdvisorForbiddenError();
   }
 }
+export async function getAdvisorApiAccess() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    return null;
+  }
+
+  if (session.user.role === "ADMIN") {
+    return {
+      userId: session.user.id,
+      role: "ADMIN" as const,
+      advisor: null,
+    };
+  }
+
+  if (session.user.role !== "ADVISOR") {
+    return null;
+  }
+
+  const advisor = await prisma.advisor.findUnique({
+    where: { userId: session.user.id },
+  });
+
+  if (!advisor) {
+    return null;
+  }
+
+  return {
+    userId: session.user.id,
+    role: "ADVISOR" as const,
+    advisor,
+  };
+}
