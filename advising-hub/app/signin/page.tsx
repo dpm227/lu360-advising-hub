@@ -15,7 +15,7 @@ export default function SignInPage() {
             program recommendations.
           </p>
         </div>
-        <button type="button" onClick={() => void signIn("google", { callbackUrl: "/auth/landing" })}>
+        <button type="button" onClick={() => void signIn("google")}>
           Sign in with Google
         </button>
       </section>

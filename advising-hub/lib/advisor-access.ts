@@ -39,15 +39,6 @@ export async function requireAdvisor() {
   };
 }
 
-export class AdvisorForbiddenError extends Error {
-  readonly status = 403;
-
-  constructor() {
-    super("FORBIDDEN");
-    this.name = "AdvisorForbiddenError";
-  }
-}
-
 export async function assertAdvisorCanViewStudent(
   access: Awaited<ReturnType<typeof requireAdvisor>>,
   studentId: string,
@@ -69,6 +60,6 @@ export async function assertAdvisorCanViewStudent(
     !student ||
     student.organizationId !== access.advisor.organizationId
   ) {
-    throw new AdvisorForbiddenError();
+    throw new Error("FORBIDDEN");
   }
 }

@@ -32,7 +32,7 @@ export function ProgramActions({
 
   async function updateProgram(action: ProgramAction) {
     if (status !== "authenticated") {
-      signIn("google", { callbackUrl: "/auth/landing" });
+      signIn("google");
       return;
     }
 
