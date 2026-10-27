@@ -23,7 +23,7 @@ export function AuthButton() {
     <button
       className="google-signin-button"
       type="button"
-      onClick={() => void signIn("google", { callbackUrl: "/auth/landing" })}
+      onClick={() => void signIn("google")}
     >
       Sign in with Google
     </button>
