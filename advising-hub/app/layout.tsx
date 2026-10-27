@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   title: "LU360 AI Chat Assistant",
   description:
     "Program discovery, advising chat, and student profile matching for Lehigh360.",
+  verification: {
+    google: "aaoUx8HSWrVW-NPtW4ABH7jQHOEBSdDNraHOQ9qGSN0",
+  },
 };
 
 export default function RootLayout({
