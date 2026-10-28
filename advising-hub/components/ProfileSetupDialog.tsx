@@ -124,6 +124,7 @@ export function ProfileSetupDialog({
     <Modal labelledBy="profile-dialog-title" onClose={onClose} open={open}>
       <form
         className="profile-dialog-form"
+        data-mobile-scroll
         onSubmit={(event) => void saveProfile(event)}
       >
         <div className="profile-dialog-header">
@@ -245,7 +246,7 @@ export function ProfileSetupDialog({
 
         {error ? <p className="profile-dialog-error">{error}</p> : null}
 
-        <div className="profile-dialog-actions">
+        <div className="profile-dialog-actions" data-mobile-scroll-footer>
           <button onClick={onClose} type="button">
             Cancel
           </button>

@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:mobile": "node --test tests/mobile-viewport.test.mjs",
     "db:docker:up": "docker compose up -d postgres",
     "db:docker:down": "docker compose down",
     "db:docker:logs": "docker compose logs -f postgres",

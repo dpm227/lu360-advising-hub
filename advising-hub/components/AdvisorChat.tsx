@@ -82,10 +82,10 @@ export function AdvisorChat({
   const [input, setInput] = useState(initialPrompt);
   const [isSending, setIsSending] = useState(false);
   const didAutoSendRef = useRef(false);
-  const layoutRef = useRef<HTMLElement>(null);
+  const shellRef = useRef<HTMLElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const followMessagesRef = useRef(true);
-  useMobileViewport(layoutRef);
+  useMobileViewport(shellRef, true, true);
 
   useEffect(() => {
     const pane = messagesRef.current;
@@ -188,8 +188,8 @@ export function AdvisorChat({
   }, [autoSendInitialPrompt, initialPrompt, sendMessage]);
 
   return (
-    <AppShell active="chat" title="Advisor Chat" hidePageHeader>
-      <section className="chat-layout" ref={layoutRef}>
+    <AppShell active="chat" title="Advisor Chat" hidePageHeader shellRef={shellRef}>
+      <section className="chat-layout">
         <div className="chat-summary">
           <div className="chat-title-block">
             <p className="eyebrow">LU360 AI Chat Assistant</p>
