@@ -11,6 +11,7 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
 import { programs } from "@/lib/program-data";
+import { MOBILE_QUERY, useMobileViewport } from "@/lib/use-mobile-viewport";
 
 type Message = {
   id: string;
@@ -81,6 +82,30 @@ export function AdvisorChat({
   const [input, setInput] = useState(initialPrompt);
   const [isSending, setIsSending] = useState(false);
   const didAutoSendRef = useRef(false);
+  const layoutRef = useRef<HTMLElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
+  const followMessagesRef = useRef(true);
+  useMobileViewport(layoutRef);
+
+  useEffect(() => {
+    const pane = messagesRef.current;
+    if (pane && window.matchMedia(MOBILE_QUERY).matches && followMessagesRef.current) {
+      // Scroll only the conversation, never its ancestors or the page.
+      pane.scrollTop = pane.scrollHeight;
+    }
+  }, [messages, isSending]);
+
+  useEffect(() => {
+    const pane = messagesRef.current;
+    if (!pane) return;
+    const observer = new ResizeObserver(() => {
+      if (window.matchMedia(MOBILE_QUERY).matches && followMessagesRef.current) {
+        pane.scrollTop = pane.scrollHeight;
+      }
+    });
+    observer.observe(pane);
+    return () => observer.disconnect();
+  }, []);
 
   const quickPrompts = useMemo(
     () => [
@@ -164,7 +189,7 @@ export function AdvisorChat({
 
   return (
     <AppShell active="chat" title="Advisor Chat" hidePageHeader>
-      <section className="chat-layout">
+      <section className="chat-layout" ref={layoutRef}>
         <div className="chat-summary">
           <div className="chat-title-block">
             <p className="eyebrow">LU360 AI Chat Assistant</p>
@@ -180,7 +205,18 @@ export function AdvisorChat({
         </div>
 
         <div className="chat-panel">
-          <div className="messages" aria-live="polite">
+          <div
+            className="messages"
+            aria-live="polite"
+            aria-label="Conversation"
+            role="log"
+            tabIndex={0}
+            ref={messagesRef}
+            onScroll={(event) => {
+              const pane = event.currentTarget;
+              followMessagesRef.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48;
+            }}
+          >
             {messages.map((message) => (
               <div className={`message ${message.role}`} key={message.id}>
                 <MarkdownMessage content={message.content} />
@@ -208,6 +244,7 @@ export function AdvisorChat({
           <form className="composer" onSubmit={handleSubmit}>
             <input
               aria-label="Message"
+              enterKeyHint="send"
               placeholder="Ask about fit, deadlines, funding, credit..."
               value={input}
               onChange={(event) => setInput(event.target.value)}
