@@ -2,6 +2,7 @@
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { SessionProvider, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   type EditableProfile,
   type ProfileOptions,
@@ -11,10 +12,28 @@ import {
 export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <SessionProvider>
+      <SessionRouteRefresh />
       {children}
       <ProfileOnboardingPrompt />
     </SessionProvider>
   );
+}
+
+function SessionRouteRefresh() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const previousUserId = useRef<string | null>(null);
+  const userId = session?.user?.id ?? null;
+
+  useEffect(() => {
+    if (status === "loading" || previousUserId.current === userId) return;
+    previousUserId.current = userId;
+    // NextAuth updates client context, but cached Server Components also need
+    // a fresh request to render the current user's profile and saved programs.
+    router.refresh();
+  }, [router, status, userId]);
+
+  return null;
 }
 
 type ProfilePayload = {

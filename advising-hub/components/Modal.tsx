@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useRef } from "react";
+import { MOBILE_QUERY, useMobileViewport } from "@/lib/use-mobile-viewport";
 
 type ModalProps = {
   children: ReactNode;
@@ -27,7 +28,9 @@ export function Modal({
   panelClassName = "",
 }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
   const lastActiveElementRef = useRef<HTMLElement | null>(null);
+  useMobileViewport(backdropRef, open);
 
   useEffect(() => {
     if (!open) {
@@ -40,13 +43,24 @@ export function Modal({
         : null;
 
     const previousOverflow = document.body.style.overflow;
+    const mobile = window.matchMedia(MOBILE_QUERY).matches;
+    const scrollY = window.scrollY;
+    const previousPosition = document.body.style.position;
+    const previousTop = document.body.style.top;
+    const previousWidth = document.body.style.width;
     document.body.style.overflow = "hidden";
+    if (mobile) {
+      // iOS can still pan an overflow-hidden body behind a focused form.
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = "100%";
+    }
 
     const focusableElements = Array.from(
       panelRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? [],
     );
     const firstFocusable = focusableElements[0] ?? panelRef.current;
-    firstFocusable?.focus();
+    firstFocusable?.focus({ preventScroll: window.matchMedia(MOBILE_QUERY).matches });
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -89,7 +103,13 @@ export function Modal({
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
-      lastActiveElementRef.current?.focus();
+      if (mobile) {
+        document.body.style.position = previousPosition;
+        document.body.style.top = previousTop;
+        document.body.style.width = previousWidth;
+        window.scrollTo({ top: scrollY, behavior: "instant" });
+      }
+      lastActiveElementRef.current?.focus({ preventScroll: window.matchMedia(MOBILE_QUERY).matches });
     };
   }, [onClose, open]);
 
@@ -100,6 +120,7 @@ export function Modal({
   return (
     <div
       className="modal-backdrop"
+      ref={backdropRef}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose();

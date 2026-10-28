@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import type { ProgramRecord } from "@/lib/program-data";
 import { ProgramActions } from "@/components/ProgramActions";
+import { MOBILE_QUERY } from "@/lib/use-mobile-viewport";
 
 export type FeaturedProgramMatch = {
   program: ProgramRecord;
@@ -31,12 +32,15 @@ export function DiscoverCarousel({ programs, savedSlugs }: DiscoverCarouselProps
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [savedBySlug, setSavedBySlug] = useState<Record<string, boolean>>({});
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
   const selectedMatch = programs[selectedIndex];
   const selectedProgram = selectedMatch?.program;
 
   function selectProgram(index: number) {
     const nextIndex = (index + programs.length) % programs.length;
     setSelectedIndex(nextIndex);
+    // Mobile controls live in the detail tile; never scroll the page to a hidden thumbnail.
+    if (window.matchMedia(MOBILE_QUERY).matches) return;
     itemRefs.current[nextIndex]?.scrollIntoView({
       behavior: "smooth",
       block: "nearest",
@@ -115,8 +119,56 @@ export function DiscoverCarousel({ programs, savedSlugs }: DiscoverCarouselProps
               : undefined
           }
           aria-label={selectedProgram.imageAlt || selectedProgram.title}
-        />
-        <div className="selected-program-content">
+          onTouchStart={(event) => {
+            const touch = event.touches[0];
+            swipeStart.current = window.matchMedia(MOBILE_QUERY).matches && event.touches.length === 1
+              ? { x: touch.clientX, y: touch.clientY }
+              : null;
+          }}
+          onTouchCancel={() => { swipeStart.current = null; }}
+          onTouchEnd={(event) => {
+            const start = swipeStart.current;
+            swipeStart.current = null;
+            const touch = event.changedTouches[0];
+            if (!start || !touch) return;
+            const dx = touch.clientX - start.x;
+            const dy = touch.clientY - start.y;
+            if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+              selectProgram(selectedIndex + (dx < 0 ? 1 : -1));
+            }
+          }}
+        >
+          <div className="mobile-carousel-controls">
+            {selectedMatch.score > 0 ? (
+              <strong className="hero-program-match-label">{selectedMatch.score}% Match</strong>
+            ) : null}
+            <button
+              className="carousel-arrow left"
+              type="button"
+              aria-label="Previous program"
+              aria-controls="selected-program-details"
+              disabled={programs.length < 2}
+              onClick={() => selectProgram(selectedIndex - 1)}
+            >
+              <span aria-hidden="true" />
+            </button>
+            <span className="mobile-carousel-position" aria-live="polite" aria-atomic="true">
+              {selectedIndex + 1} / {programs.length}
+              <span className="sr-only">: {selectedProgram.title}</span>
+            </span>
+            <button
+              className="carousel-arrow right"
+              type="button"
+              aria-label="Next program"
+              aria-controls="selected-program-details"
+              disabled={programs.length < 2}
+              onClick={() => selectProgram(selectedIndex + 1)}
+            >
+              <span aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+        <div className="selected-program-content" id="selected-program-details">
           <div className="selected-program-heading">
             <div>
               <p className="eyebrow">Selected program</p>

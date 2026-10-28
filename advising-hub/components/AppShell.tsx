@@ -69,7 +69,7 @@ export function AppShell({
   const activeItem = navItems.find((item) => item.id === active);
 
   return (
-    <main className="site-shell">
+    <main className="site-shell" data-page={active}>
       <nav className="site-navbar" aria-label="Primary navigation">
         <Link className="site-brand" href="/">
           <span>

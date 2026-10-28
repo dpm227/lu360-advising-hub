@@ -558,6 +558,10 @@ select {
   background-size: cover;
 }
 
+.mobile-carousel-controls {
+  display: none;
+}
+
 .selected-program-content {
   display: grid;
   align-content: start;
@@ -1770,5 +1774,249 @@ select {
 
   .program-image {
     height: 150px;
+  }
+}
+
+/* Mobile enhancements stay inside the existing mobile-navigation breakpoint. */
+@media (max-width: 920px) {
+  .carousel-shell {
+    display: none;
+  }
+
+  .selected-program-panel {
+    margin-top: 0;
+    gap: 0;
+  }
+
+  .selected-program-image {
+    position: relative;
+    min-height: 0;
+    height: clamp(190px, 56vw, 320px);
+    touch-action: pan-y pinch-zoom;
+  }
+
+  .mobile-carousel-controls {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+    background: linear-gradient(transparent 65%, rgb(0 0 0 / 0.5));
+  }
+
+  .mobile-carousel-controls .carousel-arrow {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .mobile-carousel-position {
+    align-self: flex-end;
+    margin-bottom: 6px;
+    border-radius: 999px;
+    padding: 6px 12px;
+    background: rgb(0 0 0 / 0.7);
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .selected-program-content {
+    min-width: 0;
+    padding: 18px;
+  }
+
+  .selected-program-heading {
+    flex-wrap: wrap;
+  }
+
+  .selected-program-links {
+    max-width: 100%;
+    justify-content: flex-start;
+  }
+
+  .selected-program-heading h2,
+  .program-content,
+  .program-facts dd,
+  .chip,
+  .profile-header-main,
+  .recommendation-row {
+    overflow-wrap: anywhere;
+  }
+
+  .profile-header-main,
+  .profile-header-main > div,
+  .recommendation-row > div {
+    min-width: 0;
+  }
+
+  .profile-avatar {
+    flex-shrink: 0;
+  }
+
+  .section-heading {
+    flex-wrap: wrap;
+  }
+
+  .program-action,
+  .selected-program-heading a,
+  .profile-edit-button,
+  .modal-close,
+  .profile-choice,
+  .profile-dialog-actions button {
+    min-height: 44px;
+  }
+
+  .profile-edit-button,
+  .modal-close {
+    min-width: 44px;
+  }
+
+  .mobile-nav-menu {
+    left: auto;
+    width: max(230px, 100%);
+    max-width: calc(100vw - 28px);
+    max-height: calc(100dvh - 88px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .site-shell[data-page="chat"],
+  .site-shell[data-page="chat"] .app-surface {
+    min-height: 0;
+  }
+
+  .chat-layout {
+    height: calc(var(--mobile-viewport-height, 100dvh) - var(--mobile-nav-height, 68px));
+    min-height: 0;
+    padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+    grid-template-rows: minmax(0, 1fr);
+    overflow-anchor: none;
+  }
+
+  .chat-panel {
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .messages {
+    padding: 12px;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scroll-padding-block: 12px;
+  }
+
+  .message {
+    flex-shrink: 0;
+    min-width: 0;
+    max-width: 94%;
+    overflow-wrap: anywhere;
+  }
+
+  .quick-prompts {
+    min-width: 0;
+    padding: 8px 12px;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .quick-prompts button {
+    min-height: 44px;
+  }
+
+  .composer {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 10px 12px 12px;
+  }
+
+  .composer input,
+  .profile-form-grid input,
+  .profile-form-grid select {
+    /* Prevent focus zoom on iOS without disabling the user's pinch zoom. */
+    font-size: 16px;
+  }
+
+  .modal-backdrop {
+    top: var(--mobile-viewport-top, 0px);
+    bottom: auto;
+    height: var(--mobile-viewport-height, 100dvh);
+    align-items: stretch;
+    overflow: hidden;
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  }
+
+  .modal-panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
+  }
+
+  .profile-dialog-form {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: max-content;
+    align-content: start;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scroll-padding-block: 64px 90px;
+    padding: 18px;
+  }
+
+  .profile-form-grid input,
+  .profile-form-grid select {
+    min-width: 0;
+  }
+
+  .profile-form-grid .profile-funding-toggle {
+    display: flex;
+  }
+
+  .profile-funding-toggle input {
+    flex: 0 0 18px;
+  }
+
+  .profile-choice {
+    max-width: 100%;
+    padding-block: 8px;
+    overflow-wrap: anywhere;
+  }
+
+  .profile-choice:focus-within {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  .profile-dialog-actions {
+    z-index: 2;
+    bottom: -18px;
+    margin: 0 -18px -18px;
+    padding: 12px 18px;
+    flex-wrap: nowrap;
+  }
+
+  .profile-dialog-actions button {
+    flex: 1;
+  }
+
+  #all-programs {
+    scroll-margin-top: 84px;
+  }
+  .chat-layout[data-compact-viewport] .chat-panel:focus-within .quick-prompts {
+    display: none;
+  }
+
+  .chat-layout[data-compact-viewport] .chat-panel:focus-within {
+    grid-template-rows: minmax(0, 1fr) auto;
   }
 }
