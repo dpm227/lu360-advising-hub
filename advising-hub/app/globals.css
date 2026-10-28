@@ -1884,13 +1884,35 @@ select {
     overscroll-behavior: contain;
   }
 
-  .site-shell[data-page="chat"],
+  .site-shell[data-page="chat"] {
+    display: flex;
+    flex-direction: column;
+    height: var(--mobile-viewport-height, 100dvh);
+    min-height: 0;
+  }
+
+  .site-shell[data-page="chat"][data-mobile-input-active] {
+    position: fixed;
+    top: var(--mobile-viewport-top, 0px);
+    right: 0;
+    left: 0;
+    overflow: hidden;
+  }
+
+  .site-shell[data-page="chat"] .site-navbar {
+    flex: 0 0 auto;
+  }
+
   .site-shell[data-page="chat"] .app-surface {
+    display: flex;
+    flex: 1;
     min-height: 0;
   }
 
   .chat-layout {
-    height: calc(var(--mobile-viewport-height, 100dvh) - var(--mobile-nav-height, 68px));
+    flex: 1;
+    height: auto;
+    min-width: 0;
     min-height: 0;
     padding: 8px 12px max(8px, env(safe-area-inset-bottom));
     grid-template-rows: minmax(0, 1fr);
@@ -2012,11 +2034,11 @@ select {
   #all-programs {
     scroll-margin-top: 84px;
   }
-  .chat-layout[data-compact-viewport] .chat-panel:focus-within .quick-prompts {
+  .site-shell[data-page="chat"][data-compact-viewport][data-mobile-input-active] .quick-prompts {
     display: none;
   }
 
-  .chat-layout[data-compact-viewport] .chat-panel:focus-within {
+  .site-shell[data-page="chat"][data-compact-viewport][data-mobile-input-active] .chat-panel {
     grid-template-rows: minmax(0, 1fr) auto;
   }
 }

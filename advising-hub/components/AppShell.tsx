@@ -1,4 +1,4 @@
-import type { ReactNode, SVGProps } from "react";
+import type { ReactNode, Ref, SVGProps } from "react";
 import Link from "next/link";
 import { AuthButton } from "@/components/AuthButton";
 import { ProfileNavIcon } from "@/components/ProfileNavIcon";
@@ -8,6 +8,7 @@ type AppShellProps = {
   title: string;
   hidePageHeader?: boolean;
   children: ReactNode;
+  shellRef?: Ref<HTMLElement>;
 };
 
 const navItems = [
@@ -65,11 +66,12 @@ export function AppShell({
   title,
   hidePageHeader = false,
   children,
+  shellRef,
 }: AppShellProps) {
   const activeItem = navItems.find((item) => item.id === active);
 
   return (
-    <main className="site-shell" data-page={active}>
+    <main className="site-shell" data-page={active} ref={shellRef}>
       <nav className="site-navbar" aria-label="Primary navigation">
         <Link className="site-brand" href="/">
           <span>

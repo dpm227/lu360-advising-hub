@@ -2,6 +2,7 @@
 
 import { type ReactNode, useEffect, useRef } from "react";
 import { MOBILE_QUERY, useMobileViewport } from "@/lib/use-mobile-viewport";
+import { lockDocumentScroll } from "@/lib/document-scroll-lock";
 
 type ModalProps = {
   children: ReactNode;
@@ -33,6 +34,21 @@ export function Modal({
   useMobileViewport(backdropRef, open);
 
   useEffect(() => {
+    if (!open) return;
+    const media = window.matchMedia(MOBILE_QUERY);
+    let unlock = lockDocumentScroll(media.matches);
+    function updateLock() {
+      unlock();
+      unlock = lockDocumentScroll(media.matches);
+    }
+    media.addEventListener("change", updateLock);
+    return () => {
+      media.removeEventListener("change", updateLock);
+      unlock();
+    };
+  }, [open]);
+
+  useEffect(() => {
     if (!open) {
       return;
     }
@@ -41,20 +57,6 @@ export function Modal({
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
-
-    const previousOverflow = document.body.style.overflow;
-    const mobile = window.matchMedia(MOBILE_QUERY).matches;
-    const scrollY = window.scrollY;
-    const previousPosition = document.body.style.position;
-    const previousTop = document.body.style.top;
-    const previousWidth = document.body.style.width;
-    document.body.style.overflow = "hidden";
-    if (mobile) {
-      // iOS can still pan an overflow-hidden body behind a focused form.
-      document.body.style.position = "fixed";
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.width = "100%";
-    }
 
     const focusableElements = Array.from(
       panelRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? [],
@@ -102,13 +104,6 @@ export function Modal({
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
-      if (mobile) {
-        document.body.style.position = previousPosition;
-        document.body.style.top = previousTop;
-        document.body.style.width = previousWidth;
-        window.scrollTo({ top: scrollY, behavior: "instant" });
-      }
       lastActiveElementRef.current?.focus({ preventScroll: window.matchMedia(MOBILE_QUERY).matches });
     };
   }, [onClose, open]);
