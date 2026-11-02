@@ -55,6 +55,183 @@ select {
   background: var(--surface-lowest);
 }
 
+.site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding: 24px clamp(20px, 4vw, 56px);
+  border-top: 1px solid var(--outline-variant);
+  background: var(--surface);
+  color: #49454f;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.site-footer p {
+  margin: 0;
+}
+
+.site-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+
+.site-footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.site-footer a:hover,
+.legal-page a:hover {
+  text-decoration: underline;
+}
+
+.site-footer a:focus-visible,
+.legal-page a:focus-visible,
+.legal-contents summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+.legal-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 48px clamp(20px, 4vw, 56px) 64px;
+}
+
+.legal-header {
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.legal-header h1 {
+  margin: 12px 0 16px;
+  font-size: clamp(32px, 5vw, 48px);
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.legal-date,
+.legal-updated {
+  margin: 0;
+  color: #49454f;
+  font-size: 14px;
+}
+
+.legal-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 48px;
+  padding-top: 32px;
+}
+
+.legal-contents {
+  position: sticky;
+  top: 100px;
+  align-self: start;
+  max-height: calc(100dvh - 124px);
+  overflow-y: auto;
+  padding: 20px;
+  border: 1px solid var(--outline-variant);
+  border-radius: 16px;
+  background: var(--surface);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.legal-contents summary {
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.legal-contents ol {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0 0;
+  padding-left: 20px;
+  list-style: decimal;
+}
+
+.legal-content {
+  min-width: 0;
+  font-size: 16px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.legal-section + .legal-section {
+  margin-top: 36px;
+}
+
+.legal-section h2 {
+  margin: 0 0 16px;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1.4;
+  scroll-margin-top: 100px;
+}
+
+.legal-section h3 {
+  margin: 24px 0 12px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.legal-section p {
+  margin: 0 0 16px;
+}
+
+.legal-section ul {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  list-style: disc;
+}
+
+.legal-section li + li {
+  margin-top: 6px;
+}
+
+.legal-section a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legal-updated {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--outline-variant);
+}
+
+@media (max-width: 800px) {
+  .legal-page {
+    padding-top: 32px;
+  }
+
+  .legal-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+  }
+
+  .legal-contents {
+    position: static;
+    max-height: none;
+  }
+
+  .legal-section h2 {
+    font-size: 21px;
+    scroll-margin-top: 120px;
+  }
+}
+
 .site-navbar {
   min-height: 72px;
   position: sticky;
@@ -417,6 +594,10 @@ select {
   min-height: 360px;
   background-position: center;
   background-size: cover;
+}
+
+.mobile-carousel-controls {
+  display: none;
 }
 
 .selected-program-content {
@@ -1663,5 +1844,271 @@ select {
 
   .program-image {
     height: 150px;
+  }
+}
+
+/* Mobile enhancements stay inside the existing mobile-navigation breakpoint. */
+@media (max-width: 920px) {
+  .carousel-shell {
+    display: none;
+  }
+
+  .selected-program-panel {
+    margin-top: 0;
+    gap: 0;
+  }
+
+  .selected-program-image {
+    position: relative;
+    min-height: 0;
+    height: clamp(190px, 56vw, 320px);
+    touch-action: pan-y pinch-zoom;
+  }
+
+  .mobile-carousel-controls {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+    background: linear-gradient(transparent 65%, rgb(0 0 0 / 0.5));
+  }
+
+  .mobile-carousel-controls .carousel-arrow {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .mobile-carousel-position {
+    align-self: flex-end;
+    margin-bottom: 6px;
+    border-radius: 999px;
+    padding: 6px 12px;
+    background: rgb(0 0 0 / 0.7);
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .selected-program-content {
+    min-width: 0;
+    padding: 18px;
+  }
+
+  .selected-program-heading {
+    flex-wrap: wrap;
+  }
+
+  .selected-program-links {
+    max-width: 100%;
+    justify-content: flex-start;
+  }
+
+  .selected-program-heading h2,
+  .program-content,
+  .program-facts dd,
+  .chip,
+  .profile-header-main,
+  .recommendation-row {
+    overflow-wrap: anywhere;
+  }
+
+  .profile-header-main,
+  .profile-header-main > div,
+  .recommendation-row > div {
+    min-width: 0;
+  }
+
+  .profile-avatar {
+    flex-shrink: 0;
+  }
+
+  .section-heading {
+    flex-wrap: wrap;
+  }
+
+  .program-action,
+  .selected-program-heading a,
+  .profile-edit-button,
+  .modal-close,
+  .profile-choice,
+  .profile-dialog-actions button {
+    min-height: 44px;
+  }
+
+  .profile-edit-button,
+  .modal-close {
+    min-width: 44px;
+  }
+
+  .mobile-nav-menu {
+    left: auto;
+    width: max(230px, 100%);
+    max-width: calc(100vw - 28px);
+    max-height: calc(100dvh - 88px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .site-shell[data-page="chat"] {
+    display: flex;
+    flex-direction: column;
+    height: var(--mobile-viewport-height, 100dvh);
+    min-height: 0;
+  }
+
+  .site-shell[data-page="chat"][data-mobile-input-active] {
+    position: fixed;
+    top: var(--mobile-viewport-top, 0px);
+    right: 0;
+    left: 0;
+    overflow: hidden;
+  }
+
+  .site-shell[data-page="chat"] .site-navbar {
+    flex: 0 0 auto;
+  }
+
+  .site-shell[data-page="chat"] .app-surface {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .chat-layout {
+    flex: 1;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+    grid-template-rows: minmax(0, 1fr);
+    overflow-anchor: none;
+  }
+
+  .chat-panel {
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .messages {
+    padding: 12px;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scroll-padding-block: 12px;
+  }
+
+  .message {
+    flex-shrink: 0;
+    min-width: 0;
+    max-width: 94%;
+    overflow-wrap: anywhere;
+  }
+
+  .quick-prompts {
+    min-width: 0;
+    padding: 8px 12px;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .quick-prompts button {
+    min-height: 44px;
+  }
+
+  .composer {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 10px 12px 12px;
+  }
+
+  .composer input,
+  .profile-form-grid input,
+  .profile-form-grid select {
+    /* Prevent focus zoom on iOS without disabling the user's pinch zoom. */
+    font-size: 16px;
+  }
+
+  .modal-backdrop {
+    top: var(--mobile-viewport-top, 0px);
+    bottom: auto;
+    height: var(--mobile-viewport-height, 100dvh);
+    align-items: stretch;
+    overflow: hidden;
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  }
+
+  .modal-panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
+  }
+
+  .profile-dialog-form {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: max-content;
+    align-content: start;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scroll-padding-block: 64px 90px;
+    padding: 18px;
+  }
+
+  .profile-form-grid input,
+  .profile-form-grid select {
+    min-width: 0;
+  }
+
+  .profile-form-grid .profile-funding-toggle {
+    display: flex;
+  }
+
+  .profile-funding-toggle input {
+    flex: 0 0 18px;
+  }
+
+  .profile-choice {
+    max-width: 100%;
+    padding-block: 8px;
+    overflow-wrap: anywhere;
+  }
+
+  .profile-choice:focus-within {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  .profile-dialog-actions {
+    z-index: 2;
+    bottom: -18px;
+    margin: 0 -18px -18px;
+    padding: 12px 18px;
+    flex-wrap: nowrap;
+  }
+
+  .profile-dialog-actions button {
+    flex: 1;
+  }
+
+  #all-programs {
+    scroll-margin-top: 84px;
+  }
+  .site-shell[data-page="chat"][data-compact-viewport][data-mobile-input-active] .quick-prompts {
+    display: none;
+  }
+
+  .site-shell[data-page="chat"][data-compact-viewport][data-mobile-input-active] .chat-panel {
+    grid-template-rows: minmax(0, 1fr) auto;
   }
 }

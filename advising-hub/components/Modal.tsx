@@ -1,6 +1,8 @@
 "use client";
 
 import { type ReactNode, useEffect, useRef } from "react";
+import { MOBILE_QUERY, useMobileViewport } from "@/lib/use-mobile-viewport";
+import { lockDocumentScroll } from "@/lib/document-scroll-lock";
 
 type ModalProps = {
   children: ReactNode;
@@ -27,7 +29,24 @@ export function Modal({
   panelClassName = "",
 }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
   const lastActiveElementRef = useRef<HTMLElement | null>(null);
+  useMobileViewport(backdropRef, open);
+
+  useEffect(() => {
+    if (!open) return;
+    const media = window.matchMedia(MOBILE_QUERY);
+    let unlock = lockDocumentScroll(media.matches);
+    function updateLock() {
+      unlock();
+      unlock = lockDocumentScroll(media.matches);
+    }
+    media.addEventListener("change", updateLock);
+    return () => {
+      media.removeEventListener("change", updateLock);
+      unlock();
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -39,14 +58,11 @@ export function Modal({
         ? document.activeElement
         : null;
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
     const focusableElements = Array.from(
       panelRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? [],
     );
     const firstFocusable = focusableElements[0] ?? panelRef.current;
-    firstFocusable?.focus();
+    firstFocusable?.focus({ preventScroll: window.matchMedia(MOBILE_QUERY).matches });
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -88,8 +104,7 @@ export function Modal({
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
-      lastActiveElementRef.current?.focus();
+      lastActiveElementRef.current?.focus({ preventScroll: window.matchMedia(MOBILE_QUERY).matches });
     };
   }, [onClose, open]);
 
@@ -100,6 +115,7 @@ export function Modal({
   return (
     <div
       className="modal-backdrop"
+      ref={backdropRef}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose();

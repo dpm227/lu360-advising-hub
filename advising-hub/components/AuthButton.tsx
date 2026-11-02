@@ -1,6 +1,7 @@
 "use client";
 
-import { signIn, signOut, useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 
 export function AuthButton() {
   const { data: session, status } = useSession();
@@ -19,13 +20,5 @@ export function AuthButton() {
     );
   }
 
-  return (
-    <button
-      className="google-signin-button"
-      type="button"
-      onClick={() => void signIn("google")}
-    >
-      Sign in with Google
-    </button>
-  );
+  return <GoogleSignInButton />;
 }

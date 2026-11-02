@@ -12,6 +12,7 @@ import { AppShell } from "@/components/AppShell";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
 import { ProgramCard } from "@/components/ProgramCard";
 import { programs, type ProgramRecord } from "@/lib/program-data";
+import { MOBILE_QUERY, useMobileViewport } from "@/lib/use-mobile-viewport";
 
 type Message = {
   id: string;
@@ -93,6 +94,34 @@ export function AdvisorChat({
   const [isSending, setIsSending] = useState(false);
   const [savedBySlug, setSavedBySlug] = useState<Record<string, boolean>>({});
   const didAutoSendRef = useRef(false);
+  const shellRef = useRef<HTMLElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
+  const followMessagesRef = useRef(true);
+  useMobileViewport(shellRef, true, true);
+
+  useEffect(() => {
+    const pane = messagesRef.current;
+    if (
+      pane &&
+      window.matchMedia(MOBILE_QUERY).matches &&
+      followMessagesRef.current
+    ) {
+      // Scroll only the conversation, never its ancestors or the page.
+      pane.scrollTop = pane.scrollHeight;
+    }
+  }, [messages, isSending]);
+
+  useEffect(() => {
+    const pane = messagesRef.current;
+    if (!pane) return;
+    const observer = new ResizeObserver(() => {
+      if (window.matchMedia(MOBILE_QUERY).matches && followMessagesRef.current) {
+        pane.scrollTop = pane.scrollHeight;
+      }
+    });
+    observer.observe(pane);
+    return () => observer.disconnect();
+  }, []);
 
   const quickPrompts = useMemo(
     () => [
@@ -194,7 +223,10 @@ export function AdvisorChat({
 
         const payload = (await response.json()) as ChatThreadResponse;
 
-        if (payload.threadId !== requestedThreadId || !Array.isArray(payload.messages)) {
+        if (
+          payload.threadId !== requestedThreadId ||
+          !Array.isArray(payload.messages)
+        ) {
           throw new Error("Invalid conversation response");
         }
 
@@ -238,7 +270,7 @@ export function AdvisorChat({
   }, [autoSendInitialPrompt, initialPrompt, isLoadingThread, sendMessage]);
 
   return (
-    <AppShell active="chat" title="Advisor Chat" hidePageHeader>
+    <AppShell active="chat" title="Advisor Chat" hidePageHeader shellRef={shellRef}>
       <section className="chat-layout">
         <div className="chat-summary">
           <div className="chat-title-block">
@@ -255,7 +287,19 @@ export function AdvisorChat({
         </div>
 
         <div className="chat-panel">
-          <div className="messages" aria-live="polite">
+          <div
+            className="messages"
+            aria-live="polite"
+            aria-label="Conversation"
+            role="log"
+            tabIndex={0}
+            ref={messagesRef}
+            onScroll={(event) => {
+              const pane = event.currentTarget;
+              followMessagesRef.current =
+                pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48;
+            }}
+          >
             {messages.map((message) => (
               <div className={`message-group ${message.role}`} key={message.id}>
                 <div className={`message ${message.role}`}>
@@ -314,11 +358,15 @@ export function AdvisorChat({
             <input
               aria-label="Message"
               disabled={isLoadingThread}
+              enterKeyHint="send"
               placeholder="Ask about fit, deadlines, funding, credit..."
               value={input}
               onChange={(event) => setInput(event.target.value)}
             />
-            <button type="submit" disabled={isLoadingThread || isSending || input.trim() === ""}>
+            <button
+              type="submit"
+              disabled={isLoadingThread || isSending || input.trim() === ""}
+            >
               Send
             </button>
           </form>

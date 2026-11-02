@@ -1,9 +1,19 @@
-"use client";
-
-import { signIn } from "next-auth/react";
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { authOptions } from "@/lib/auth";
 
-export default function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ callbackUrl?: string }>;
+}) {
+  const session = await getServerSession(authOptions);
+  if (session?.user) redirect("/profile");
+
+  const { callbackUrl } = await searchParams;
+
   return (
     <AppShell active="profile" title="Sign In">
       <section className="signin-panel">
@@ -15,9 +25,7 @@ export default function SignInPage() {
             program recommendations.
           </p>
         </div>
-        <button type="button" onClick={() => void signIn("google")}>
-          Sign in with Google
-        </button>
+        <GoogleSignInButton callbackUrl={callbackUrl || "/profile"} />
       </section>
     </AppShell>
   );

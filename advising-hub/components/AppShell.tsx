@@ -1,13 +1,14 @@
-import type { ReactNode, SVGProps } from "react";
+import type { ReactNode, Ref, SVGProps } from "react";
 import Link from "next/link";
 import { AuthButton } from "@/components/AuthButton";
 import { ProfileNavIcon } from "@/components/ProfileNavIcon";
 
 type AppShellProps = {
-  active: "discover" | "chat" | "profile";
+  active?: "discover" | "chat" | "profile";
   title: string;
   hidePageHeader?: boolean;
   children: ReactNode;
+  shellRef?: Ref<HTMLElement>;
 };
 
 const navItems = [
@@ -65,11 +66,12 @@ export function AppShell({
   title,
   hidePageHeader = false,
   children,
+  shellRef,
 }: AppShellProps) {
-  const activeItem = navItems.find((item) => item.id === active) ?? navItems[0];
+  const activeItem = navItems.find((item) => item.id === active);
 
   return (
-    <main className="site-shell">
+    <main className="site-shell" data-page={active} ref={shellRef}>
       <nav className="site-navbar" aria-label="Primary navigation">
         <Link className="site-brand" href="/">
           <span>
@@ -95,8 +97,8 @@ export function AppShell({
         <details className="mobile-nav-selector">
           <summary>
             <span className="mobile-nav-current">
-              <NavIcon type={activeItem.icon} />
-              <span>{activeItem.label}</span>
+              {activeItem ? <NavIcon type={activeItem.icon} /> : null}
+              <span>{activeItem?.label ?? "Navigate"}</span>
             </span>
             <svg
               aria-hidden="true"

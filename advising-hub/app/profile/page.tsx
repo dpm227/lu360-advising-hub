@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { AppShell } from "@/components/AppShell";
 import { ProgramCard } from "@/components/ProgramCard";
 import { ProfileEditButton } from "@/components/ProfileEditButton";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma-client";
 import { getProgramOptions, getProgramRecords } from "@/lib/program-records";
@@ -33,9 +33,7 @@ export default async function ProfilePage() {
             Google sign-in creates your student profile and lets the hub save
             programs, hide programs, and keep chat history connected to you.
           </p>
-          <Link className="profile-link-button" href="/signin">
-            Sign in with Google
-          </Link>
+          <GoogleSignInButton callbackUrl="/profile" className="profile-link-button" />
         </section>
       </AppShell>
     );

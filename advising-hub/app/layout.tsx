@@ -1,11 +1,22 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { AuthProvider } from "@/components/AuthProvider";
+import { SiteFooter } from "@/components/SiteFooter";
+import { MobilePageScrollReset } from "@/components/MobilePageScrollReset";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "resizes-content",
+};
 
 export const metadata: Metadata = {
   title: "LU360 AI Chat Assistant",
   description:
     "Program discovery, advising chat, and student profile matching for Lehigh360.",
+  verification: {
+    google: "aaoUx8HSWrVW-NPtW4ABH7jQHOEBSdDNraHOQ9qGSN0",
+  },
 };
 
 export default function RootLayout({
@@ -16,7 +27,11 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <MobilePageScrollReset />
+          {children}
+        </AuthProvider>
+        <SiteFooter />
       </body>
     </html>
   );
