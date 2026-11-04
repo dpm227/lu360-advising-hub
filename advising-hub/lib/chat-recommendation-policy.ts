@@ -1,7 +1,7 @@
 const RECOMMENDATION_INTENT_PATTERNS = [
-  /\brecommend\b/i,
-  /\bsuggest\b/i,
-  /\b(?:find|show|list)\s+(?:me\s+)?(?:(?:\d+|a|some)\s+)?(?:funded\s+|paid\s+)?(?:research\s+)?(?:programs?|opportunities)\b/i,
+  /\brecommend(?:ed|ing|ations?)?\b/i,
+  /\bsuggest(?:ed|ing|ions?)?\b/i,
+  /\b(?:find|show|list)\s+(?:me\s+)?(?:(?:\d+|some)\s+|a\s+(?:(?:few|couple|handful)(?:\s+of)?\s+)?)?(?:funded\s+|paid\s+)?(?:research\s+)?(?:programs?|opportunities)\b/i,
   /\b(?:which|what)\s+(?:programs?|opportunities)\s+(?:should|would|could|might|do)\b/i,
   /\bwhat\s+should\s+i\s+(?:apply\s+to|join|choose)\b/i,
   /\b(?:best|good|strong)\s+(?:fit|match)\b/i,
@@ -10,10 +10,12 @@ const RECOMMENDATION_INTENT_PATTERNS = [
 ];
 
 const FACTUAL_FOLLOW_UP_PATTERN =
-  /\b(?:why|when|how)\s+(?:(?:did|do|would|could)\s+)?(?:you\s+)?(?:recommend|suggest)\b|\bwhat\s+did\s+you\s+(?:recommend|suggest)\b/i;
+  /\b(?:why|when|how)\s+(?:(?:did|do|would|could)\s+)?(?:you\s+)?(?:recommend|suggest)\b|\bwhat\s+did\s+you\s+(?:recommend|suggest)\b|\b(?:programs?|opportunities|options?|ones?)\s+(?:(?:that|which)\s+)?(?:you\s+)?(?:recommended|suggested)\b/i;
+
+const SINGLE_PROGRAM_REQUEST_PATTERN =
+  /(?:\b(?:recommend|suggest|find|show)\b|đề xuất|gợi ý)\s+(?:(?:me|cho tôi|tôi|mình)\s+)?(?:just\s+)?a\s+(?!few\b|couple\b|handful\b)(?:[a-z-]+\s+){0,4}(?:program|opportunity)\b/i;
 
 const COUNT_WORDS: Record<string, number> = {
-  a: 1,
   one: 1,
   single: 1,
   two: 2,
@@ -82,11 +84,13 @@ export function recommendationLimitForMessage(
   }
 
   const requestedCount = message.match(
-    /(?:\b(?:recommend|suggest|find|show|list)\b|đề xuất|gợi ý)\s+(?:(?:me|cho tôi|tôi|mình)\s+)?(?:just\s+)?(?:the\s+)?(?:top\s+)?(\d+|one|two|three|single|a)\b/i,
+    /(?:\b(?:recommend|suggest|find|show|list)\b|đề xuất|gợi ý)\s+(?:(?:me|cho tôi|tôi|mình)\s+)?(?:just\s+)?(?:the\s+)?(?:top\s+)?(\d+|one|two|three|single)\b/i,
   )?.[1]?.toLowerCase();
   const count = requestedCount
     ? (COUNT_WORDS[requestedCount] ?? Number(requestedCount))
-    : Number.NaN;
+    : SINGLE_PROGRAM_REQUEST_PATTERN.test(message)
+      ? 1
+      : Number.NaN;
 
   const requestedLimit = Number.isFinite(count) ? Math.max(0, count) : null;
   const normalizedMessage = message.toLowerCase();

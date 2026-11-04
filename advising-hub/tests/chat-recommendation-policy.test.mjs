@@ -14,6 +14,11 @@ test("factual questions and recommendation follow-ups do not create tags", () =>
   assert.equal(recommendationLimitForMessage("What did you recommend earlier?"), 0);
 });
 
+test("recommendation and suggestion nouns start a new recommendation set", () => {
+  assert.equal(recommendationLimitForMessage("Any recommendations for this summer?"), null);
+  assert.equal(recommendationLimitForMessage("Can you give me some suggestions?"), null);
+});
+
 test("geographic requests use specific destinations before shared keywords", () => {
   const sharedKeywords = ["Africa", "Central Asia", "Southeast Asia"];
   const india = { title: "India Global Social Impact Fellowship", keywords: sharedKeywords };
@@ -50,6 +55,10 @@ test("the current catalog separates named African and Asian programs", () => {
 test("recommendation requests honor requested counts without a fixed cap", () => {
   assert.equal(recommendationLimitForMessage("Recommend one funded research program."), 1);
   assert.equal(recommendationLimitForMessage("Suggest me 2 programs."), 2);
+  assert.equal(recommendationLimitForMessage("Recommend a funded research program."), 1);
+  assert.equal(recommendationLimitForMessage("Recommend a few programs in Asia."), null);
+  assert.equal(recommendationLimitForMessage("Suggest a couple of research programs."), null);
+  assert.equal(recommendationLimitForMessage("Find me a handful of opportunities."), null);
   assert.equal(recommendationLimitForMessage("Recommend 100 programs."), 100);
   assert.equal(recommendationLimitForMessage("Show me 100 programs."), 100);
   assert.equal(recommendationLimitForMessage("Which programs should I consider?"), null);
