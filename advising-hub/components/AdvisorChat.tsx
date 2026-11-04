@@ -94,6 +94,7 @@ export function AdvisorChat({
   const [isSending, setIsSending] = useState(false);
   const [savedBySlug, setSavedBySlug] = useState<Record<string, boolean>>({});
   const didAutoSendRef = useRef(false);
+  const contextRef = useRef(context);
   const shellRef = useRef<HTMLElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const followMessagesRef = useRef(true);
@@ -201,6 +202,10 @@ export function AdvisorChat({
   }
 
   useEffect(() => {
+    contextRef.current = context;
+  }, [context]);
+
+  useEffect(() => {
     if (!initialThreadId) {
       return;
     }
@@ -236,7 +241,7 @@ export function AdvisorChat({
         if (!controller.signal.aborted) {
           setThreadId(null);
           setMessages([
-            ...createStarterMessages(context),
+            ...createStarterMessages(contextRef.current),
             {
               id: "thread-load-error",
               role: "assistant",
@@ -253,7 +258,7 @@ export function AdvisorChat({
 
     void loadThread();
     return () => controller.abort();
-  }, [context, initialThreadId]);
+  }, [initialThreadId]);
 
   useEffect(() => {
     if (

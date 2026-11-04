@@ -14,6 +14,8 @@ import { getProgramRecords } from "@/lib/program-records";
 import type { ChatRecommendedPrograms } from "@/lib/chat-recommendations";
 import { getServerSession } from "next-auth";
 
+const MAX_BEST_CURRENT_FITS = 5;
+
 async function getStudentProgramLists() {
   const session = await getServerSession(authOptions);
 
@@ -128,7 +130,9 @@ export default async function Home() {
     ({ program }) => chatRecommended[program.slug],
   );
   const recommendations =
-    chatMatches.length > 0 ? chatMatches : rankedVisiblePrograms.slice(0, 3);
+    chatMatches.length > 0
+      ? chatMatches.slice(0, MAX_BEST_CURRENT_FITS)
+      : rankedVisiblePrograms.slice(0, 3);
 
   return (
     <AppShell active="discover" title="Discover">
