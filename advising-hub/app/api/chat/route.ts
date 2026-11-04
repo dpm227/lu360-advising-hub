@@ -743,24 +743,28 @@ export async function POST(request: Request) {
   const validatedAiRecommendations = aiResult
     ? validateRecommendations(aiResult.recommendations, programRecords)
     : [];
-  const aiRecommendationsAreValid = Boolean(
+  const filteredAiRecommendations = validatedAiRecommendations
+    .filter(({ program }) => programMatchesRequestedRegion(message, program))
+    .slice(0, recommendationLimit ?? undefined);
+  const shouldUseLocalFallback = Boolean(
     aiResult &&
-      validatedAiRecommendations.length === aiResult.recommendations.length &&
-      (recommendationLimit === null || validatedAiRecommendations.length <= recommendationLimit) &&
-      validatedAiRecommendations.every(({ program }) =>
-        programMatchesRequestedRegion(message, program),
-      ),
+      isRecommendationRequest &&
+      hasGeographicConstraint(message) &&
+      aiResult.recommendations.length > 0 &&
+      filteredAiRecommendations.length === 0,
   );
   const advisorResult =
-    aiResult && aiRecommendationsAreValid
+    aiResult && !shouldUseLocalFallback
       ? aiResult
       : localAdvisorResponse(message, profile, programRecords);
-  const recommendations = isRecommendationRequest
-    ? validateRecommendations(advisorResult.recommendations, programRecords).slice(
-        0,
-        recommendationLimit ?? undefined,
-      )
-    : [];
+  const recommendations = !isRecommendationRequest
+    ? []
+    : advisorResult === aiResult
+      ? filteredAiRecommendations
+      : validateRecommendations(advisorResult.recommendations, programRecords).slice(
+          0,
+          recommendationLimit ?? undefined,
+        );
 
   try {
     await persistAssistantResult({
