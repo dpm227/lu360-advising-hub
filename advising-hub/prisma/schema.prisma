@@ -363,6 +363,8 @@ model StudentProgramRecommendation {
   contentSimilarityScore Float?
   finalScore             Float?
   explanation            String?
+  /// CHAT rows in the latest recommendation response are shown on Discover.
+  isActive               Boolean              @default(false)
   generatedAt            DateTime             @default(now())
 
   @@unique([studentId, programId, source])
