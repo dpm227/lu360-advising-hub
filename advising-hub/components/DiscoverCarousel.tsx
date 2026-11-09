@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import type { ProgramRecord } from "@/lib/program-data";
 import { ProgramActions } from "@/components/ProgramActions";
+import Link from "next/link";
+import type { ChatRecommendedPrograms } from "@/lib/chat-recommendations";
 import { MOBILE_QUERY } from "@/lib/use-mobile-viewport";
 
 export type FeaturedProgramMatch = {
@@ -13,6 +15,7 @@ export type FeaturedProgramMatch = {
 type DiscoverCarouselProps = {
   programs: FeaturedProgramMatch[];
   savedSlugs: string[];
+  chatRecommended: ChatRecommendedPrograms;
 };
 
 function formatDate(date?: string) {
@@ -28,13 +31,20 @@ function formatDate(date?: string) {
   }).format(new Date(`${date}T00:00:00Z`));
 }
 
-export function DiscoverCarousel({ programs, savedSlugs }: DiscoverCarouselProps) {
+export function DiscoverCarousel({
+  programs,
+  savedSlugs,
+  chatRecommended,
+}: DiscoverCarouselProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [savedBySlug, setSavedBySlug] = useState<Record<string, boolean>>({});
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
   const selectedMatch = programs[selectedIndex];
   const selectedProgram = selectedMatch?.program;
+  const selectedChatRecommendation = selectedProgram
+    ? chatRecommended[selectedProgram.slug]
+    : undefined;
 
   function selectProgram(index: number) {
     const nextIndex = (index + programs.length) % programs.length;
@@ -93,7 +103,11 @@ export function DiscoverCarousel({ programs, savedSlugs }: DiscoverCarouselProps
               onClick={() => selectProgram(index)}
             >
               <span>{program.title}</span>
-              {score > 0 ? (
+              {chatRecommended[program.slug] ? (
+                <strong className="hero-program-match-label chat-recommendation-badge">
+                  Recommended by Chatbot
+                </strong>
+              ) : score > 0 ? (
                 <strong className="hero-program-match-label">{score}% Match</strong>
               ) : null}
             </button>
@@ -121,11 +135,15 @@ export function DiscoverCarousel({ programs, savedSlugs }: DiscoverCarouselProps
           aria-label={selectedProgram.imageAlt || selectedProgram.title}
           onTouchStart={(event) => {
             const touch = event.touches[0];
-            swipeStart.current = window.matchMedia(MOBILE_QUERY).matches && event.touches.length === 1
-              ? { x: touch.clientX, y: touch.clientY }
-              : null;
+            swipeStart.current =
+              window.matchMedia(MOBILE_QUERY).matches &&
+              event.touches.length === 1
+                ? { x: touch.clientX, y: touch.clientY }
+                : null;
           }}
-          onTouchCancel={() => { swipeStart.current = null; }}
+          onTouchCancel={() => {
+            swipeStart.current = null;
+          }}
           onTouchEnd={(event) => {
             const start = swipeStart.current;
             swipeStart.current = null;
@@ -139,7 +157,11 @@ export function DiscoverCarousel({ programs, savedSlugs }: DiscoverCarouselProps
           }}
         >
           <div className="mobile-carousel-controls">
-            {selectedMatch.score > 0 ? (
+            {selectedChatRecommendation ? (
+              <strong className="hero-program-match-label chat-recommendation-badge">
+                Recommended by Chatbot
+              </strong>
+            ) : selectedMatch.score > 0 ? (
               <strong className="hero-program-match-label">{selectedMatch.score}% Match</strong>
             ) : null}
             <button
@@ -152,7 +174,11 @@ export function DiscoverCarousel({ programs, savedSlugs }: DiscoverCarouselProps
             >
               <span aria-hidden="true" />
             </button>
-            <span className="mobile-carousel-position" aria-live="polite" aria-atomic="true">
+            <span
+              className="mobile-carousel-position"
+              aria-live="polite"
+              aria-atomic="true"
+            >
               {selectedIndex + 1} / {programs.length}
               <span className="sr-only">: {selectedProgram.title}</span>
             </span>
@@ -178,7 +204,10 @@ export function DiscoverCarousel({ programs, savedSlugs }: DiscoverCarouselProps
               <ProgramActions
                 key={selectedProgram.slug}
                 applicationUrl={selectedProgram.applicationUrl}
-                saved={savedBySlug[selectedProgram.slug] ?? savedSlugs.includes(selectedProgram.slug)}
+                saved={
+                  savedBySlug[selectedProgram.slug] ??
+                  savedSlugs.includes(selectedProgram.slug)
+                }
                 onSavedChange={(saved) =>
                   setSavedBySlug((current) => ({ ...current, [selectedProgram.slug]: saved }))
                 }
@@ -188,6 +217,21 @@ export function DiscoverCarousel({ programs, savedSlugs }: DiscoverCarouselProps
               />
             </div>
           </div>
+          {selectedChatRecommendation ? (
+            <div className="chat-recommendation-detail">
+              <span className="chat-recommendation-badge">Recommended by Chatbot</span>
+              {selectedChatRecommendation.explanation ? (
+                <p>{selectedChatRecommendation.explanation}</p>
+              ) : null}
+              {selectedChatRecommendation.threadId ? (
+                <Link
+                  href={`/chat?thread=${encodeURIComponent(selectedChatRecommendation.threadId)}`}
+                >
+                  Continue chat
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
           <p>{selectedProgram.description}</p>
           <dl className="program-facts">
             <div>

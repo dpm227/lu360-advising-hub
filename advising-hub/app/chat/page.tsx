@@ -41,6 +41,7 @@ function buildChatContext(profile: StudentProfile, isSignedIn: boolean) {
     isSignedIn,
     profileName: profile.name,
     summary: profileSummary(profile, isSignedIn),
+    savedSlugs: [],
   } satisfies ChatPageContext;
 }
 
@@ -57,6 +58,7 @@ async function getChatContext() {
       opportunityInterests: { include: { opportunityType: true } },
       keywords: true,
       statuses: true,
+      savedPrograms: { include: { program: { select: { slug: true } } } },
     },
   });
 
@@ -82,11 +84,14 @@ async function getChatContext() {
     statuses: student.statuses.map((status) => status.statusName),
   };
 
-  return buildChatContext(profile, true);
+  return {
+    ...buildChatContext(profile, true),
+    savedSlugs: student.savedPrograms.map(({ program }) => program.slug),
+  };
 }
 
 type ChatPageProps = {
-  searchParams?: Promise<{ autoSend?: string; prompt?: string }>;
+  searchParams?: Promise<{ autoSend?: string; prompt?: string; thread?: string }>;
 };
 
 export default async function ChatPage({ searchParams }: ChatPageProps) {
@@ -94,12 +99,14 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
   const params = await searchParams;
   const initialPrompt = params?.prompt?.trim() ?? "";
   const autoSendInitialPrompt = params?.autoSend === "1";
+  const initialThreadId = params?.thread?.trim();
 
   return (
     <AdvisorChat
       autoSendInitialPrompt={autoSendInitialPrompt}
       context={context}
       initialPrompt={initialPrompt}
+      initialThreadId={initialThreadId}
     />
   );
 }
