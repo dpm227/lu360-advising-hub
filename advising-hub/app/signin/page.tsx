@@ -10,7 +10,7 @@ export default async function SignInPage({
   searchParams: Promise<{ callbackUrl?: string }>;
 }) {
   const session = await getServerSession(authOptions);
-  if (session?.user) redirect("/profile");
+  if (session?.user) redirect("/auth/landing");
 
   const { callbackUrl } = await searchParams;
 
@@ -25,7 +25,7 @@ export default async function SignInPage({
             program recommendations.
           </p>
         </div>
-        <GoogleSignInButton callbackUrl={callbackUrl || "/profile"} />
+        <GoogleSignInButton callbackUrl={callbackUrl || "/auth/landing"} />
       </section>
     </AppShell>
   );
