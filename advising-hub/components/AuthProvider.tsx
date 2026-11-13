@@ -54,6 +54,7 @@ function ProfileOnboardingPrompt() {
     if (
       status !== "authenticated" ||
       !userId ||
+      session?.user?.role !== "STUDENT" ||
       checkedUserIdRef.current === userId
     ) {
       return;
@@ -77,7 +78,7 @@ function ProfileOnboardingPrompt() {
     }
 
     void loadProfile();
-  }, [session?.user?.id, status]);
+  }, [session?.user?.id, session?.user?.role, status]);
 
   if (!payload || !open) {
     return null;

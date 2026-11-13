@@ -34,7 +34,7 @@ export function ProgramActions({
 
   async function updateProgram(action: ProgramAction) {
     if (status !== "authenticated") {
-      signIn("google");
+      signIn("google", { callbackUrl: "/auth/landing" });
       return;
     }
 

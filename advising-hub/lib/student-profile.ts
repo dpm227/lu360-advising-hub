@@ -24,6 +24,14 @@ export async function getOrCreateLehighOrganization() {
 }
 
 export async function ensureStudentForUser(user: UserIdentity) {
+  const account = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { role: true },
+  });
+
+  if (!account || account.role !== "STUDENT") {
+    throw new Error("Only student accounts can create student profiles.");
+  }
   const organization = await getOrCreateLehighOrganization();
   const { firstName, lastName } = splitName(user.name);
 

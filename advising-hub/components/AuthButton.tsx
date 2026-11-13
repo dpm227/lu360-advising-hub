@@ -20,5 +20,5 @@ export function AuthButton() {
     );
   }
 
-  return <GoogleSignInButton />;
+  return <GoogleSignInButton callbackUrl="/auth/landing" />;
 }
