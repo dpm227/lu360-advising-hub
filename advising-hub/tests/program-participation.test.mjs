@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   excludesProgramFromRecommendations,
   isProgramParticipationStatus,
+  parseProgramParticipationInput,
   programParticipationStatusLabels,
   programParticipationStatuses,
 } from "../lib/program-participation.ts";
@@ -15,6 +16,43 @@ test("recognizes every supported participation status", () => {
 
   assert.equal(isProgramParticipationStatus("WAITLISTED"), false);
   assert.equal(isProgramParticipationStatus(null), false);
+});
+
+test("normalizes valid experience details", () => {
+  assert.deepEqual(
+    parseProgramParticipationInput({
+      status: "COMPLETED",
+      term: "  Summer 2026  ",
+      reflection: "  Strong faculty mentorship.  ",
+      liked: true,
+    }),
+    {
+      data: {
+        status: "COMPLETED",
+        term: "Summer 2026",
+        reflection: "Strong faculty mentorship.",
+        liked: true,
+      },
+    },
+  );
+});
+
+test("rejects invalid experience details", () => {
+  assert.match(
+    parseProgramParticipationInput({ status: "WAITLISTED" }).error,
+    /valid experience status/i,
+  );
+  assert.match(
+    parseProgramParticipationInput({
+      status: "APPLIED",
+      reflection: "a".repeat(1001),
+    }).error,
+    /1000 characters/i,
+  );
+  assert.match(
+    parseProgramParticipationInput({ status: "APPLIED", liked: "yes" }).error,
+    /rating/i,
+  );
 });
 
 test("only active and completed experiences suppress recommendations", () => {

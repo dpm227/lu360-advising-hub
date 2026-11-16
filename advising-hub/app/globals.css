@@ -1279,6 +1279,115 @@ select {
   line-height: 19px;
 }
 
+.profile-experiences {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+  border-top: 1px solid color-mix(in srgb, var(--outline-variant), white 35%);
+  padding-top: 18px;
+}
+
+.profile-experiences-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.profile-experiences-heading h3,
+.profile-experiences-heading p {
+  margin: 0;
+}
+
+.profile-experiences-heading h3 {
+  font-size: 16px;
+}
+
+.profile-experiences-heading p {
+  margin-top: 4px;
+  color: #49454f;
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.profile-experience-list {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-experience-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid var(--outline-variant);
+  border-radius: 8px;
+  padding: 11px 12px;
+  background: white;
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-experience-card:hover {
+  background: var(--surface-container);
+}
+
+.profile-experience-card > span:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.profile-experience-card strong,
+.profile-experience-card small {
+  overflow-wrap: anywhere;
+}
+
+.profile-experience-card small,
+.profile-experience-card > span:last-child {
+  color: #49454f;
+  font-size: 12px;
+}
+
+.profile-experience-card > span:last-child {
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.experience-dialog {
+  width: min(680px, 100%);
+}
+
+.profile-form-grid textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--outline-variant);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: white;
+  color: var(--foreground);
+  font: inherit;
+  line-height: 21px;
+  outline: none;
+}
+
+.profile-form-grid textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-container), white 30%);
+}
+
+.experience-dialog-actions {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+}
+
+.experience-dialog-actions .experience-delete-button {
+  border-color: #ba1a1a;
+  color: #ba1a1a;
+}
+
 .profile-side {
   display: grid;
   gap: 14px;
@@ -1792,6 +1901,15 @@ select {
     align-items: flex-start;
   }
 
+  .profile-experiences-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-experiences-heading .program-action {
+    align-self: flex-start;
+  }
+
   .profile-header {
     flex-direction: column;
   }
@@ -1836,6 +1954,14 @@ select {
     bottom: -18px;
     margin: 0 -18px -18px;
     padding: 14px 18px;
+  }
+
+  .experience-dialog-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .experience-dialog-actions span {
+    display: none;
   }
 
   .program-grid {

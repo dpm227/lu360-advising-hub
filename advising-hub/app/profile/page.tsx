@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { AppShell } from "@/components/AppShell";
 import { ProgramCard } from "@/components/ProgramCard";
 import { ProfileEditButton } from "@/components/ProfileEditButton";
+import { ProfileExperiences } from "@/components/ProfileExperiences";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma-client";
@@ -48,6 +49,10 @@ export default async function ProfilePage() {
         statuses: true,
         savedPrograms: { include: { program: { select: { slug: true } } } },
         hiddenPrograms: { include: { program: { select: { slug: true } } } },
+        programParticipations: {
+          include: { program: { select: { slug: true, title: true } } },
+          orderBy: { updatedAt: "desc" },
+        },
       },
     }),
     getProgramRecords("profile page"),
@@ -191,6 +196,23 @@ export default async function ProfilePage() {
               )}
             </div>
           </div>
+
+          <ProfileExperiences
+            initialExperiences={student.programParticipations.map(
+              (participation) => ({
+                programSlug: participation.program.slug,
+                programTitle: participation.program.title,
+                status: participation.status,
+                term: participation.term,
+                reflection: participation.reflection,
+                liked: participation.liked,
+              }),
+            )}
+            programs={programs.map((program) => ({
+              slug: program.slug,
+              title: program.title,
+            }))}
+          />
         </div>
 
         <aside className="profile-side">
