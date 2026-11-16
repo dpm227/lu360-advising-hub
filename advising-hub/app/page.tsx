@@ -153,7 +153,11 @@ export default async function Home() {
     getProgramRecords("discover page"),
   ]);
   const visiblePrograms = programs.filter((program) => !hiddenSlugs.has(program.slug));
-  const rankedVisiblePrograms = rankedPrograms(profile, visiblePrograms).sort(
+  const rankedVisiblePrograms = rankedPrograms(
+    profile,
+    visiblePrograms,
+    Object.values(experiences),
+  ).sort(
     (first, second) =>
       Number(Boolean(chatRecommended[second.program.slug])) -
       Number(Boolean(chatRecommended[first.program.slug])),

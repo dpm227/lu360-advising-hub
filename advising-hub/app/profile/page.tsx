@@ -128,7 +128,11 @@ export default async function ProfilePage() {
   const savedPrograms = programs.filter((program) =>
     savedSlugs.has(program.slug),
   );
-  const matches = rankedPrograms(profile, programs)
+  const matches = rankedPrograms(
+    profile,
+    programs,
+    Object.values(experienceBySlug),
+  )
     .filter(({ program }) => !hiddenSlugs.has(program.slug))
     .slice(0, 2);
 

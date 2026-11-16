@@ -3,7 +3,9 @@ import type {
   ProgramParticipationInput,
   StudentProgramExperience,
 } from "@/lib/program-participation";
+import { excludesProgramFromRecommendations } from "@/lib/program-participation";
 import { prisma } from "@/lib/prisma-client";
+import { RecommendationSource } from "@prisma/client";
 
 const participationInclude = {
   program: { select: { slug: true, title: true } },
@@ -96,13 +98,29 @@ export async function upsertProgramParticipation({
     return null;
   }
 
-  return prisma.studentProgramParticipation.upsert({
-    where: {
-      studentId_programId: { studentId, programId: program.id },
-    },
-    update: input,
-    create: { studentId, programId: program.id, ...input },
-    include: participationInclude,
+  return prisma.$transaction(async (transaction) => {
+    const participation = await transaction.studentProgramParticipation.upsert({
+      where: {
+        studentId_programId: { studentId, programId: program.id },
+      },
+      update: input,
+      create: { studentId, programId: program.id, ...input },
+      include: participationInclude,
+    });
+
+    if (excludesProgramFromRecommendations(input.status)) {
+      await transaction.studentProgramRecommendation.updateMany({
+        where: {
+          studentId,
+          programId: program.id,
+          source: RecommendationSource.CHAT,
+          isActive: true,
+        },
+        data: { isActive: false },
+      });
+    }
+
+    return participation;
   });
 }
 

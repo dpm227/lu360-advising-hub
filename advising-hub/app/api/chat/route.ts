@@ -3,6 +3,7 @@ import { prisma as db } from "@/lib/prisma-client";
 import {
   evaluateProgramEligibility,
   rankedPrograms,
+  scoreProgram,
   type StudentProfile,
 } from "@/lib/recommendations";
 import { authOptions } from "@/lib/auth";
@@ -14,6 +15,11 @@ import {
 } from "@/lib/chat-recommendation-policy";
 import { ChatRole, RecommendationSource } from "@prisma/client";
 import { getServerSession } from "next-auth";
+import {
+  type StudentProgramExperience,
+  excludesProgramFromRecommendations,
+  programParticipationStatusLabels,
+} from "@/lib/program-participation";
 
 type ChatRequest = {
   message?: string;
@@ -82,6 +88,13 @@ type ChatStudent = {
   opportunityInterests: Array<{ opportunityType: { name: string } }>;
   keywords: Array<{ keyword: string }>;
   statuses: Array<{ statusName: string }>;
+  programParticipations: Array<{
+    status: StudentProgramExperience["status"];
+    term: string | null;
+    reflection: string | null;
+    liked: boolean | null;
+    program: { slug: string; title: string };
+  }>;
 };
 
 const generalStudentProfile: StudentProfile = {
@@ -141,6 +154,7 @@ How to guide the conversation:
 - From there, help identify programs that may match their personality, interests, goals, or constraints.
 - Students may ignore the introduction and ask specific questions about specific programs. Answer those directly.
 - Only recommend programs when the student explicitly asks for recommendations or suitable programs. Factual questions about a program should not create new recommendations.
+- Use the student's supplied participation history when it is available. Never recommend a program marked In progress or Completed, but you may reference a positive completed experience when explaining a similar recommendation.
 - If you cannot find a working link for a specific program, send the user to https://360.lehigh.edu/.
 - Make sure students know this is a website to find programs. They need to click the "Access Database" button or the "View Program" tab to see the program information.
 
@@ -205,6 +219,21 @@ function studentToProfile(student: ChatStudent | null): StudentProfile {
   };
 }
 
+function studentToExperiences(
+  student: ChatStudent | null,
+): StudentProgramExperience[] {
+  return (
+    student?.programParticipations.map((participation) => ({
+      programSlug: participation.program.slug,
+      programTitle: participation.program.title,
+      status: participation.status,
+      term: participation.term,
+      reflection: participation.reflection,
+      liked: participation.liked,
+    })) ?? []
+  );
+}
+
 async function getSessionStudent() {
   const session = await getServerSession(authOptions);
 
@@ -218,6 +247,10 @@ async function getSessionStudent() {
       opportunityInterests: { include: { opportunityType: true } },
       keywords: true,
       statuses: true,
+      programParticipations: {
+        include: { program: { select: { slug: true, title: true } } },
+        orderBy: { updatedAt: "desc" },
+      },
     },
   });
 }
@@ -486,6 +519,7 @@ function localAdvisorResponse(
   message: string,
   profile: StudentProfile = generalStudentProfile,
   catalog: ProgramRecord[] = programs,
+  experiences: StudentProgramExperience[] = [],
 ): AdvisorResult {
   const lowered = message.toLowerCase();
   const recommendationLimit = recommendationLimitForMessage(
@@ -493,17 +527,8 @@ function localAdvisorResponse(
     catalog.map((program) => program.title),
   );
   const shouldRecommend = recommendationLimit !== 0;
-  const ranked = rankedPrograms(profile, catalog);
+  const ranked = rankedPrograms(profile, catalog, experiences);
   const topMatch = ranked[0];
-
-  if (!topMatch) {
-    return {
-      reply:
-        "I couldn't find any programs in the current catalog. Please check Lehigh360 for the latest program information.",
-      recommendations: [],
-    };
-  }
-
   const mentionedProgram =
     catalog.find((program) => lowered.includes(program.title.toLowerCase())) ??
     catalog.find((program) =>
@@ -512,6 +537,15 @@ function localAdvisorResponse(
     (lowered.includes("marcon")
       ? catalog.find((program) => program.slug === "marcon-fellows")
       : undefined);
+
+  if (!topMatch && !mentionedProgram) {
+    return {
+      reply:
+        "I couldn't find any new programs to recommend in the current catalog. Please check Lehigh360 for the latest program information.",
+      recommendations: [],
+    };
+  }
+
   const hasProfile = hasPersonalProfile(profile);
 
   const hasLocationConstraint = hasGeographicConstraint(message);
@@ -521,12 +555,10 @@ function localAdvisorResponse(
     !mentionedProgram &&
     (hasLocationConstraint || (recommendationLimit !== null && recommendationLimit > 1))
   ) {
-    const matchingPrograms = rankedPrograms(
-      profile,
-      catalog.filter((program) =>
+    const matchingPrograms = ranked
+      .filter(({ program }) =>
         programMatchesRequestedRegion(message, program),
-      ),
-    )
+      )
       .filter(({ eligible }) => !profile.classYear || !profile.college || eligible)
       .slice(0, recommendationLimit ?? undefined);
 
@@ -550,12 +582,17 @@ function localAdvisorResponse(
     };
   }
 
-  let match = topMatch;
+  let match = topMatch ?? scoreProgram(mentionedProgram!, profile);
+  const mentionedExperience = mentionedProgram
+    ? experiences.find(
+        (experience) => experience.programSlug === mentionedProgram.slug,
+      )
+    : undefined;
 
   if (mentionedProgram) {
     match =
       ranked.find((item) => item.program.id === mentionedProgram.id) ??
-      topMatch;
+      scoreProgram(mentionedProgram, profile);
   } else if (shouldRecommend && hasProfile) {
     match = ranked.find((item) => item.eligible) ?? topMatch;
   }
@@ -581,11 +618,18 @@ function localAdvisorResponse(
     ? `This program has a **${match.score}% profile match** for ${profile.name}.`
     : `This program matches some of your interests, but you are **not currently eligible**. ${match.eligibilityReason}`;
   const shouldReturnRecommendation = Boolean(
-    shouldRecommend && (!hasProfile || mentionedProgram || match.eligible),
+    shouldRecommend &&
+      (!hasProfile || mentionedProgram || match.eligible) &&
+      !(
+        mentionedExperience &&
+        excludesProgramFromRecommendations(mentionedExperience.status)
+      ),
   );
   let responseSummary = "Here are the current program details.";
 
-  if (shouldRecommend && hasProfile) {
+  if (mentionedExperience) {
+    responseSummary = `You marked this program as **${programParticipationStatusLabels[mentionedExperience.status]}**${mentionedExperience.term ? ` for ${mentionedExperience.term}` : ""}.`;
+  } else if (shouldRecommend && hasProfile) {
     responseSummary = profileMatchSummary;
   } else if (shouldRecommend) {
     responseSummary =
@@ -622,6 +666,7 @@ async function askOpenAI(
   message: string,
   catalog: ChatProgramContext[],
   profile: StudentProfile,
+  experiences: StudentProgramExperience[],
 ): Promise<AdvisorResult | null> {
   if (!process.env.OPENAI_API_KEY) {
     return null;
@@ -649,6 +694,9 @@ async function askOpenAI(
             role: "user",
             content: `Current student profile, if known:
 ${profileContext}
+
+Student program participation history:
+${experiences.length > 0 ? JSON.stringify(experiences, null, 2) : "No program participation history is saved."}
 
 Current Lehigh360 program catalog:
 ${JSON.stringify(catalog, null, 2)}
@@ -696,6 +744,7 @@ export async function POST(request: Request) {
   }
 
   const profile = studentToProfile(student);
+  const experiences = studentToExperiences(student);
   let chatThreadId = body.threadId ?? null;
   let confirmedChatThreadId: string | null = null;
 
@@ -739,32 +788,57 @@ export async function POST(request: Request) {
     programRecords.map((program) => program.title),
   );
   const isRecommendationRequest = recommendationLimit !== 0;
-  const aiResult = await askOpenAI(message, programCatalog, profile);
+  const aiResult = await askOpenAI(
+    message,
+    programCatalog,
+    profile,
+    experiences,
+  );
   const validatedAiRecommendations = aiResult
     ? validateRecommendations(aiResult.recommendations, programRecords)
     : [];
-  const filteredAiRecommendations = validatedAiRecommendations
+  const historyFilteredAiRecommendations = validatedAiRecommendations.filter(
+    ({ program }) =>
+      !experiences.some(
+        (experience) =>
+          experience.programSlug === program.slug &&
+          excludesProgramFromRecommendations(experience.status),
+      ),
+  );
+  const filteredAiRecommendations = historyFilteredAiRecommendations
     .filter(({ program }) => programMatchesRequestedRegion(message, program))
     .slice(0, recommendationLimit ?? undefined);
+  const recommendationsRemovedForHistory = Boolean(
+    isRecommendationRequest &&
+      validatedAiRecommendations.length !==
+        historyFilteredAiRecommendations.length,
+  );
   const shouldUseLocalFallback = Boolean(
     aiResult &&
-      isRecommendationRequest &&
-      hasGeographicConstraint(message) &&
-      aiResult.recommendations.length > 0 &&
-      filteredAiRecommendations.length === 0,
+      (recommendationsRemovedForHistory ||
+        (isRecommendationRequest &&
+          hasGeographicConstraint(message) &&
+          aiResult.recommendations.length > 0 &&
+          filteredAiRecommendations.length === 0)),
   );
   const advisorResult =
     aiResult && !shouldUseLocalFallback
       ? aiResult
-      : localAdvisorResponse(message, profile, programRecords);
+      : localAdvisorResponse(message, profile, programRecords, experiences);
   const recommendations = !isRecommendationRequest
     ? []
     : advisorResult === aiResult
       ? filteredAiRecommendations
-      : validateRecommendations(advisorResult.recommendations, programRecords).slice(
-          0,
-          recommendationLimit ?? undefined,
-        );
+      : validateRecommendations(advisorResult.recommendations, programRecords)
+          .filter(
+            ({ program }) =>
+              !experiences.some(
+                (experience) =>
+                  experience.programSlug === program.slug &&
+                  excludesProgramFromRecommendations(experience.status),
+              ),
+          )
+          .slice(0, recommendationLimit ?? undefined);
 
   try {
     await persistAssistantResult({
