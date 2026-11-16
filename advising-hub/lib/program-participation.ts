@@ -21,6 +21,11 @@ export type StudentProgramExperience = ProgramParticipationInput & {
   programTitle: string;
 };
 
+export type StudentProgramExperiences = Record<
+  string,
+  StudentProgramExperience
+>;
+
 type ProgramParticipationParseResult =
   | { data: ProgramParticipationInput; error?: never }
   | { data?: never; error: string };

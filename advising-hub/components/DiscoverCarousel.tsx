@@ -6,6 +6,10 @@ import { ProgramActions } from "@/components/ProgramActions";
 import Link from "next/link";
 import type { ChatRecommendedPrograms } from "@/lib/chat-recommendations";
 import { MOBILE_QUERY } from "@/lib/use-mobile-viewport";
+import {
+  type StudentProgramExperiences,
+  programParticipationStatusLabels,
+} from "@/lib/program-participation";
 
 export type FeaturedProgramMatch = {
   program: ProgramRecord;
@@ -16,6 +20,7 @@ type DiscoverCarouselProps = {
   programs: FeaturedProgramMatch[];
   savedSlugs: string[];
   chatRecommended: ChatRecommendedPrograms;
+  experiences: StudentProgramExperiences;
 };
 
 function formatDate(date?: string) {
@@ -35,6 +40,7 @@ export function DiscoverCarousel({
   programs,
   savedSlugs,
   chatRecommended,
+  experiences,
 }: DiscoverCarouselProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [savedBySlug, setSavedBySlug] = useState<Record<string, boolean>>({});
@@ -44,6 +50,9 @@ export function DiscoverCarousel({
   const selectedProgram = selectedMatch?.program;
   const selectedChatRecommendation = selectedProgram
     ? chatRecommended[selectedProgram.slug]
+    : undefined;
+  const selectedExperience = selectedProgram
+    ? experiences[selectedProgram.slug]
     : undefined;
 
   function selectProgram(index: number) {
@@ -103,7 +112,11 @@ export function DiscoverCarousel({
               onClick={() => selectProgram(index)}
             >
               <span>{program.title}</span>
-              {chatRecommended[program.slug] ? (
+              {experiences[program.slug] ? (
+                <strong className="hero-program-match-label participation-badge">
+                  {programParticipationStatusLabels[experiences[program.slug].status]}
+                </strong>
+              ) : chatRecommended[program.slug] ? (
                 <strong className="hero-program-match-label chat-recommendation-badge">
                   Recommended by Chatbot
                 </strong>
@@ -157,7 +170,11 @@ export function DiscoverCarousel({
           }}
         >
           <div className="mobile-carousel-controls">
-            {selectedChatRecommendation ? (
+            {selectedExperience ? (
+              <strong className="hero-program-match-label participation-badge">
+                {programParticipationStatusLabels[selectedExperience.status]}
+              </strong>
+            ) : selectedChatRecommendation ? (
               <strong className="hero-program-match-label chat-recommendation-badge">
                 Recommended by Chatbot
               </strong>
@@ -204,6 +221,7 @@ export function DiscoverCarousel({
               <ProgramActions
                 key={selectedProgram.slug}
                 applicationUrl={selectedProgram.applicationUrl}
+                initialExperience={selectedExperience}
                 saved={
                   savedBySlug[selectedProgram.slug] ??
                   savedSlugs.includes(selectedProgram.slug)

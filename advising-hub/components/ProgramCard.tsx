@@ -2,11 +2,16 @@ import type { ProgramRecord } from "@/lib/program-data";
 import { ProgramActions } from "@/components/ProgramActions";
 import Link from "next/link";
 import type { ChatRecommendationInfo } from "@/lib/chat-recommendations";
+import {
+  type StudentProgramExperience,
+  programParticipationStatusLabels,
+} from "@/lib/program-participation";
 
 type ProgramCardProps = {
   program: ProgramRecord;
   compact?: boolean;
   initialSaved?: boolean;
+  experience?: StudentProgramExperience;
   chatRecommendation?: ChatRecommendationInfo;
   hideChatAction?: boolean;
   saved?: boolean;
@@ -17,6 +22,7 @@ export function ProgramCard({
   program,
   compact = false,
   initialSaved = false,
+  experience,
   chatRecommendation,
   hideChatAction = false,
   saved,
@@ -51,6 +57,11 @@ export function ProgramCard({
             {program.fundingTypes[0] ? <span>{program.fundingTypes[0]}</span> : null}
           </div>
           <h2>{program.title}</h2>
+          {experience ? (
+            <span className="participation-badge">
+              {programParticipationStatusLabels[experience.status]}
+            </span>
+          ) : null}
           {chatRecommendation ? (
             <div className="chat-recommendation-detail">
               <span className="chat-recommendation-badge">Recommended by Chatbot</span>
@@ -76,6 +87,7 @@ export function ProgramCard({
         <ProgramActions
           applicationUrl={program.applicationUrl}
           initialSaved={initialSaved}
+          initialExperience={experience}
           saved={saved}
           onSavedChange={onSavedChange}
           hideChatAction={hideChatAction}

@@ -553,6 +553,27 @@ select {
   white-space: normal;
 }
 
+.participation-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #e4f3e8;
+  color: #176b3a;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.hero-program-match-label.participation-badge {
+  max-width: calc(100% - 20px);
+  background: #e4f3e8;
+  color: #176b3a;
+  white-space: normal;
+}
+
 .chat-recommendation-detail {
   display: grid;
   justify-items: start;
@@ -892,6 +913,18 @@ select {
 .program-actions {
   display: flex;
   flex-wrap: wrap;
+  gap: 8px;
+}
+
+.program-action-groups {
+  display: grid;
+  gap: 8px;
+}
+
+.program-participation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
 }
 

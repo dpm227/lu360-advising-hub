@@ -12,6 +12,10 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma-client";
 import { getProgramRecords } from "@/lib/program-records";
 import type { ChatRecommendedPrograms } from "@/lib/chat-recommendations";
+import {
+  type StudentProgramExperiences,
+  programParticipationStatusLabels,
+} from "@/lib/program-participation";
 import { getServerSession } from "next-auth";
 
 const MAX_BEST_CURRENT_FITS = 5;
@@ -24,6 +28,7 @@ async function getStudentProgramLists() {
       savedSlugs: new Set<string>(),
       hiddenSlugs: new Set<string>(),
       chatRecommended: {} as ChatRecommendedPrograms,
+      experiences: {} as StudentProgramExperiences,
       profileName: demoProfile.name,
       profile: demoProfile,
     };
@@ -36,6 +41,9 @@ async function getStudentProgramLists() {
         opportunityInterests: { include: { opportunityType: true } },
         keywords: true,
         statuses: true,
+        programParticipations: {
+          include: { program: { select: { slug: true, title: true } } },
+        },
       },
     });
 
@@ -72,6 +80,19 @@ async function getStudentProgramLists() {
         },
       ]),
     );
+    const experiences: StudentProgramExperiences = Object.fromEntries(
+      student.programParticipations.map((participation) => [
+        participation.program.slug,
+        {
+          programSlug: participation.program.slug,
+          programTitle: participation.program.title,
+          status: participation.status,
+          term: participation.term,
+          reflection: participation.reflection,
+          liked: participation.liked,
+        },
+      ]),
+    );
 
     const name =
       [student.firstName, student.lastName].filter(Boolean).join(" ") ||
@@ -95,6 +116,7 @@ async function getStudentProgramLists() {
       savedSlugs: new Set(savedPrograms.map((saved) => saved.program.slug)),
       hiddenSlugs: new Set(hiddenPrograms.map((hidden) => hidden.program.slug)),
       chatRecommended,
+      experiences,
       profileName: name,
       profile,
     };
@@ -108,6 +130,7 @@ async function getStudentProgramLists() {
       savedSlugs: new Set<string>(),
       hiddenSlugs: new Set<string>(),
       chatRecommended: {} as ChatRecommendedPrograms,
+      experiences: {} as StudentProgramExperiences,
       profileName: demoProfile.name,
       profile: demoProfile,
     };
@@ -115,8 +138,20 @@ async function getStudentProgramLists() {
 }
 
 export default async function Home() {
-  const [{ savedSlugs, hiddenSlugs, chatRecommended, profileName, profile }, { programs }] =
-    await Promise.all([getStudentProgramLists(), getProgramRecords("discover page")]);
+  const [
+    {
+      savedSlugs,
+      hiddenSlugs,
+      chatRecommended,
+      experiences,
+      profileName,
+      profile,
+    },
+    { programs },
+  ] = await Promise.all([
+    getStudentProgramLists(),
+    getProgramRecords("discover page"),
+  ]);
   const visiblePrograms = programs.filter((program) => !hiddenSlugs.has(program.slug));
   const rankedVisiblePrograms = rankedPrograms(profile, visiblePrograms).sort(
     (first, second) =>
@@ -140,6 +175,7 @@ export default async function Home() {
         programs={featuredPrograms}
         savedSlugs={[...savedSlugs]}
         chatRecommended={chatRecommended}
+        experiences={experiences}
       />
 
       <section className="content-section">
@@ -170,7 +206,13 @@ export default async function Home() {
                     </Link>
                   ) : null}
                 </div>
-                {chatRecommendation ? (
+                {experiences[program.slug] ? (
+                  <span className="participation-badge">
+                    {programParticipationStatusLabels[
+                      experiences[program.slug].status
+                    ]}
+                  </span>
+                ) : chatRecommendation ? (
                   <span className="chat-recommendation-badge">
                     Recommended by Chatbot
                   </span>
@@ -195,6 +237,7 @@ export default async function Home() {
             <ProgramCard
               initialSaved={savedSlugs.has(program.slug)}
               chatRecommendation={chatRecommended[program.slug]}
+              experience={experiences[program.slug]}
               program={program}
               key={program.id}
             />

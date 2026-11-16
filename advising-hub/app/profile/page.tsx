@@ -112,6 +112,19 @@ export default async function ProfilePage() {
   const hiddenSlugs = new Set(
     student.hiddenPrograms.map((hidden) => hidden.program.slug),
   );
+  const experienceBySlug = Object.fromEntries(
+    student.programParticipations.map((participation) => [
+      participation.program.slug,
+      {
+        programSlug: participation.program.slug,
+        programTitle: participation.program.title,
+        status: participation.status,
+        term: participation.term,
+        reflection: participation.reflection,
+        liked: participation.liked,
+      },
+    ]),
+  );
   const savedPrograms = programs.filter((program) =>
     savedSlugs.has(program.slug),
   );
@@ -230,6 +243,7 @@ export default async function ProfilePage() {
           ).map(({ program }) => (
             <ProgramCard
               compact
+              experience={experienceBySlug[program.slug]}
               initialSaved={savedSlugs.has(program.slug)}
               program={program}
               key={program.id}

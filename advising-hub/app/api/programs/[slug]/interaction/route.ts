@@ -1,66 +1,24 @@
 import { getServerSession } from "next-auth";
-import { programs } from "@/lib/program-data";
 import { authOptions } from "@/lib/auth";
+import { parseProgramParticipationInput } from "@/lib/program-participation";
+import {
+  findOrCreateProgram,
+  serializeProgramParticipation,
+  upsertProgramParticipation,
+} from "@/lib/program-participation-service";
 import { prisma } from "@/lib/prisma-client";
 
 type InteractionRequest = {
-  action?: "save" | "unsave" | "hide" | "unhide";
+  action?: "save" | "unsave" | "hide" | "unhide" | "participate";
+  participation?: unknown;
 };
 
 type RouteContext = {
   params: Promise<{ slug: string }>;
 };
 
-function deadlineToDate(deadline?: string) {
-  return deadline ? new Date(`${deadline}T00:00:00Z`) : null;
-}
-
-async function findOrCreateProgram(slug: string, organizationId: string) {
-  const existing = await prisma.program.findFirst({
-    where: { organizationId, slug },
-    select: { id: true },
-  });
-
-  if (existing) {
-    return existing;
-  }
-
-  const localProgram = programs.find((program) => program.slug === slug);
-
-  if (!localProgram) {
-    return null;
-  }
-
-  return prisma.program.create({
-    data: {
-      organizationId,
-      title: localProgram.title,
-      slug: localProgram.slug,
-      sourceUrl: localProgram.sourceUrl,
-      website: localProgram.website,
-      contact: localProgram.contact,
-      descriptionText: localProgram.description,
-      timeline: localProgram.timeline,
-      durationLabel: localProgram.duration,
-      deadlineDate: deadlineToDate(localProgram.deadline),
-      creditAvailable: localProgram.creditAvailable,
-      workStudyOffered: localProgram.workStudyOffered,
-      financialAidAvailable: localProgram.financialAidAvailable,
-      gpaMinimumRequired: localProgram.gpaMinimumRequired,
-      gpaRequirement: localProgram.gpaRequirement,
-      applicationUrl: localProgram.applicationUrl,
-      periods: localProgram.periods,
-      fundingTypes: localProgram.fundingTypes,
-      keywords: localProgram.keywords,
-      imageUrl: localProgram.imageUrl,
-      featured: Boolean(localProgram.featured),
-    },
-    select: { id: true },
-  });
-}
-
 async function getProgramState(studentId: string, programId: string) {
-  const [savedProgram, hiddenProgram] = await Promise.all([
+  const [savedProgram, hiddenProgram, participation] = await Promise.all([
     prisma.studentSavedProgram.findUnique({
       where: { studentId_programId: { studentId, programId } },
       select: { id: true },
@@ -69,11 +27,18 @@ async function getProgramState(studentId: string, programId: string) {
       where: { studentId_programId: { studentId, programId } },
       select: { id: true },
     }),
+    prisma.studentProgramParticipation.findUnique({
+      where: { studentId_programId: { studentId, programId } },
+      include: { program: { select: { slug: true, title: true } } },
+    }),
   ]);
 
   return {
     saved: Boolean(savedProgram),
     hidden: Boolean(hiddenProgram),
+    participation: participation
+      ? serializeProgramParticipation(participation)
+      : null,
   };
 }
 
@@ -86,9 +51,12 @@ export async function POST(request: Request, context: RouteContext) {
 
   const body = (await request.json()) as InteractionRequest;
   const { slug } = await context.params;
-const action = body.action;
+  const action = body.action;
 
-  if (!action || !["save", "unsave", "hide", "unhide"].includes(action)) {
+  if (
+    !action ||
+    !["save", "unsave", "hide", "unhide", "participate"].includes(action)
+  ) {
     return Response.json({ error: "Action is required." }, { status: 400 });
   }
 
@@ -107,6 +75,21 @@ const action = body.action;
 
   if (!program) {
     return Response.json({ error: "Program was not found." }, { status: 404 });
+  }
+
+  if (action === "participate") {
+    const parsed = parseProgramParticipationInput(body.participation);
+
+    if ("error" in parsed) {
+      return Response.json({ error: parsed.error }, { status: 400 });
+    }
+
+    await upsertProgramParticipation({
+      studentId: student.id,
+      organizationId: student.organizationId,
+      programSlug: slug,
+      input: parsed.data,
+    });
   }
 
   if (action === "save") {
