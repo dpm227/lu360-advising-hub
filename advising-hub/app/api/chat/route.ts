@@ -18,8 +18,13 @@ import { getServerSession } from "next-auth";
 import {
   type StudentProgramExperience,
   excludesProgramFromRecommendations,
+  parseProgramParticipationInput,
   programParticipationStatusLabels,
 } from "@/lib/program-participation";
+import {
+  type ChatProfileUpdate,
+  detectProgramParticipationUpdates,
+} from "@/lib/chat-profile-updates";
 
 type ChatRequest = {
   message?: string;
@@ -34,6 +39,16 @@ type RecommendationReference = {
 type AdvisorResult = {
   reply: string;
   recommendations: RecommendationReference[];
+  profileUpdates?: ProfileUpdateReference[];
+};
+
+type ProfileUpdateReference = {
+  kind: "PROGRAM_PARTICIPATION";
+  programSlug: string;
+  status: StudentProgramExperience["status"];
+  term: string | null;
+  reflection: string | null;
+  liked: boolean | null;
 };
 
 type ChatRecommendation = {
@@ -136,8 +151,48 @@ const ADVISOR_RESPONSE_SCHEMA = {
         additionalProperties: false,
       },
     },
+    profileUpdates: {
+      type: "array",
+      description:
+        "Past or current program participation explicitly stated by the student. These are pending updates that require confirmation in the UI. Leave empty for questions, hypotheticals, or inferred participation.",
+      items: {
+        type: "object",
+        properties: {
+          kind: {
+            type: "string",
+            enum: ["PROGRAM_PARTICIPATION"],
+          },
+          programSlug: {
+            type: "string",
+            description: "An exact slug from the supplied program catalog.",
+          },
+          status: {
+            type: "string",
+            enum: [
+              "APPLIED",
+              "ACCEPTED",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "DECLINED",
+            ],
+          },
+          term: { type: ["string", "null"] },
+          reflection: { type: ["string", "null"] },
+          liked: { type: ["boolean", "null"] },
+        },
+        required: [
+          "kind",
+          "programSlug",
+          "status",
+          "term",
+          "reflection",
+          "liked",
+        ],
+        additionalProperties: false,
+      },
+    },
   },
-  required: ["reply", "recommendations"],
+  required: ["reply", "recommendations", "profileUpdates"],
   additionalProperties: false,
 } as const;
 
@@ -155,6 +210,8 @@ How to guide the conversation:
 - Students may ignore the introduction and ask specific questions about specific programs. Answer those directly.
 - Only recommend programs when the student explicitly asks for recommendations or suitable programs. Factual questions about a program should not create new recommendations.
 - Use the student's supplied participation history when it is available. Never recommend a program marked In progress or Completed, but you may reference a positive completed experience when explaining a similar recommendation.
+- When the student clearly states that they applied to, were accepted to, are participating in, completed, or were declined from a catalog program, add a PROGRAM_PARTICIPATION item to profileUpdates and ask them to confirm it in the UI. Never claim the update was already saved.
+- Leave profileUpdates empty for questions, hypothetical plans, recommendations, or participation you merely inferred. Use the exact catalog slug and preserve only term, reflection, or positive/negative sentiment that the student explicitly stated.
 - If you cannot find a working link for a specific program, send the user to https://360.lehigh.edu/.
 - Make sure students know this is a website to find programs. They need to click the "Access Database" button or the "View Program" tab to see the program information.
 
@@ -343,6 +400,37 @@ function validateRecommendations(
   return validated;
 }
 
+function validateProfileUpdates(
+  updates: ProfileUpdateReference[],
+  catalog: ProgramRecord[],
+): ChatProfileUpdate[] {
+  const programsBySlug = new Map(
+    catalog.map((program) => [program.slug.toLowerCase(), program]),
+  );
+  const seenSlugs = new Set<string>();
+  const validated: ChatProfileUpdate[] = [];
+
+  for (const update of updates) {
+    const slug = update.programSlug.trim().toLowerCase();
+    const program = programsBySlug.get(slug);
+    const parsed = parseProgramParticipationInput(update);
+
+    if (!program || seenSlugs.has(slug) || "error" in parsed) {
+      continue;
+    }
+
+    seenSlugs.add(slug);
+    validated.push({
+      kind: "PROGRAM_PARTICIPATION",
+      programSlug: program.slug,
+      programTitle: program.title,
+      ...parsed.data,
+    });
+  }
+
+  return validated;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -358,13 +446,15 @@ function parseAdvisorResult(value: string | null): AdvisorResult | null {
     if (
       !isRecord(parsed) ||
       typeof parsed.reply !== "string" ||
-      !Array.isArray(parsed.recommendations)
+      !Array.isArray(parsed.recommendations) ||
+      !Array.isArray(parsed.profileUpdates)
     ) {
       return null;
     }
 
     const reply = parsed.reply.trim();
     const recommendations: RecommendationReference[] = [];
+    const profileUpdates: ProfileUpdateReference[] = [];
 
     if (!reply) {
       return null;
@@ -385,7 +475,29 @@ function parseAdvisorResult(value: string | null): AdvisorResult | null {
       });
     }
 
-    return { reply, recommendations };
+    for (const update of parsed.profileUpdates) {
+      if (
+        !isRecord(update) ||
+        update.kind !== "PROGRAM_PARTICIPATION" ||
+        typeof update.programSlug !== "string"
+      ) {
+        return null;
+      }
+
+      const parsedParticipation = parseProgramParticipationInput(update);
+
+      if ("error" in parsedParticipation) {
+        return null;
+      }
+
+      profileUpdates.push({
+        kind: "PROGRAM_PARTICIPATION",
+        programSlug: update.programSlug.trim(),
+        ...parsedParticipation.data,
+      });
+    }
+
+    return { reply, recommendations, profileUpdates };
   } catch {
     return null;
   }
@@ -527,6 +639,24 @@ function localAdvisorResponse(
     catalog.map((program) => program.title),
   );
   const shouldRecommend = recommendationLimit !== 0;
+  const detectedProfileUpdates = detectProgramParticipationUpdates(
+    message,
+    catalog,
+  );
+
+  if (detectedProfileUpdates.length > 0) {
+    return {
+      reply: `I understood that you marked ${detectedProfileUpdates
+        .map(
+          (update) =>
+            `**${update.programTitle}** as **${programParticipationStatusLabels[update.status]}**`,
+        )
+        .join(" and ")}. Please confirm below before I add this to your profile.`,
+      recommendations: [],
+      profileUpdates: detectedProfileUpdates,
+    };
+  }
+
   const ranked = rankedPrograms(profile, catalog, experiences);
   const topMatch = ranked[0];
   const mentionedProgram =
@@ -839,6 +969,10 @@ export async function POST(request: Request) {
               ),
           )
           .slice(0, recommendationLimit ?? undefined);
+  const profileUpdates = validateProfileUpdates(
+    advisorResult.profileUpdates ?? [],
+    programRecords,
+  );
 
   try {
     await persistAssistantResult({
@@ -860,5 +994,6 @@ export async function POST(request: Request) {
     response: advisorResult.reply,
     threadId: chatThreadId,
     recommendations,
+    profileUpdates,
   });
 }

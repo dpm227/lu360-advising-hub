@@ -1075,6 +1075,83 @@ select {
   min-height: 150px;
 }
 
+.chat-profile-updates {
+  width: min(100%, 520px);
+  display: grid;
+  gap: 10px;
+}
+
+.chat-profile-update {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--primary), white 55%);
+  border-radius: 8px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--primary-container), white 55%);
+}
+
+.chat-profile-update > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.chat-profile-update strong,
+.chat-profile-update p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.chat-profile-update p {
+  color: #49454f;
+  font-size: 13px;
+}
+
+.chat-profile-update-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-profile-update-actions button {
+  min-height: 36px;
+  border: 1px solid var(--outline-variant);
+  border-radius: 999px;
+  padding: 0 13px;
+  background: white;
+  color: var(--primary);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.chat-profile-update-actions button:last-child {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: white;
+}
+
+.chat-profile-update-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.profile-update-result {
+  color: #49454f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.profile-update-result.saved {
+  color: #176b3a;
+}
+
+.chat-profile-update-error {
+  grid-column: 1 / -1;
+  color: #8c1d18 !important;
+  font-weight: 700;
+}
+
 .markdown-message {
   display: grid;
   gap: 8px;
@@ -1959,6 +2036,14 @@ select {
 
   .chat-program-cards .program-card.compact {
     grid-template-columns: 1fr;
+  }
+
+  .chat-profile-update {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-profile-update-actions {
+    flex-wrap: wrap;
   }
 
   .modal-backdrop {
