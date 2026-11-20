@@ -102,6 +102,7 @@ model Student {
   savedPrograms         StudentSavedProgram[]
   hiddenPrograms        StudentHiddenProgram[]
   recommendations       StudentProgramRecommendation[]
+  programParticipations StudentProgramParticipation[]
   createdAt             DateTime                       @default(now())
   updatedAt             DateTime                       @updatedAt
 }
@@ -169,6 +170,7 @@ model Program {
   savedByStudents       StudentSavedProgram[]
   hiddenByStudents      StudentHiddenProgram[]
   recommendations       StudentProgramRecommendation[]
+  studentParticipations StudentProgramParticipation[]
   createdAt             DateTime                       @default(now())
   updatedAt             DateTime                       @updatedAt
 
@@ -342,6 +344,32 @@ model StudentHiddenProgram {
   hiddenAt  DateTime @default(now())
 
   @@unique([studentId, programId])
+}
+
+enum ProgramParticipationStatus {
+  APPLIED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  DECLINED
+}
+
+model StudentProgramParticipation {
+  id         String                     @id @default(cuid())
+  studentId  String
+  student    Student                    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  programId  String
+  program    Program                    @relation(fields: [programId], references: [id], onDelete: Cascade)
+  status     ProgramParticipationStatus
+  term       String?
+  reflection String?
+  liked      Boolean?
+  createdAt  DateTime                   @default(now())
+  updatedAt  DateTime                   @updatedAt
+
+  @@unique([studentId, programId])
+  @@index([studentId, status])
+  @@index([programId])
 }
 
 enum RecommendationSource {

@@ -1,6 +1,12 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { classYears, colleges, opportunityTypes } from "@/lib/program-data";
+import { parseProgramParticipationInput } from "@/lib/program-participation";
+import {
+  deleteProgramParticipation,
+  serializeProgramParticipation,
+  upsertProgramParticipation,
+} from "@/lib/program-participation-service";
 import { prisma } from "@/lib/prisma-client";
 
 type ProfileRequest = {
@@ -13,6 +19,17 @@ type ProfileRequest = {
   interests?: string[];
   keywords?: string | string[];
   statuses?: string | string[];
+};
+
+type ExperienceRequest = {
+  experience?: {
+    action?: "upsert" | "delete";
+    programSlug?: string;
+    status?: unknown;
+    term?: unknown;
+    reflection?: unknown;
+    liked?: unknown;
+  };
 };
 
 const statusSuggestions = [
@@ -83,6 +100,9 @@ function profileResponse(student: NonNullable<Awaited<ReturnType<typeof getStude
       keywords: student.keywords.map((keyword) => keyword.keyword),
       statuses: student.statuses.map((status) => status.statusName),
     },
+    experiences: student.programParticipations.map(
+      serializeProgramParticipation,
+    ),
     options: {
       classYears,
       colleges,
@@ -110,6 +130,10 @@ async function getStudent(userId: string) {
       opportunityInterests: { include: { opportunityType: true } },
       keywords: true,
       statuses: true,
+      programParticipations: {
+        include: { program: { select: { slug: true, title: true } } },
+        orderBy: { updatedAt: "desc" },
+      },
     },
   });
 }
@@ -224,9 +248,82 @@ export async function PUT(request: Request) {
         opportunityInterests: { include: { opportunityType: true } },
         keywords: true,
         statuses: true,
+        programParticipations: {
+          include: { program: { select: { slug: true, title: true } } },
+          orderBy: { updatedAt: "desc" },
+        },
       },
     });
   });
 
   return Response.json(profileResponse(updatedStudent));
+}
+
+export async function PATCH(request: Request) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id || !session.user.email) {
+    return Response.json({ error: "Sign in is required." }, { status: 401 });
+  }
+
+  const student = await prisma.student.findUnique({
+    where: { userId: session.user.id },
+    select: { id: true, organizationId: true },
+  });
+
+  if (!student) {
+    return Response.json(
+      { error: "Sign in again to update your experiences." },
+      { status: 409 },
+    );
+  }
+
+  const body = (await request.json()) as ExperienceRequest;
+  const experience = body.experience;
+  const programSlug = cleanText(experience?.programSlug);
+
+  if (!experience?.action || !programSlug) {
+    return Response.json(
+      { error: "Experience action and program are required." },
+      { status: 400 },
+    );
+  }
+
+  if (experience.action === "delete") {
+    await deleteProgramParticipation({
+      studentId: student.id,
+      organizationId: student.organizationId,
+      programSlug,
+    });
+
+    return Response.json({ deleted: true, programSlug });
+  }
+
+  if (experience.action !== "upsert") {
+    return Response.json(
+      { error: "Experience action is not supported." },
+      { status: 400 },
+    );
+  }
+
+  const parsed = parseProgramParticipationInput(experience);
+
+  if ("error" in parsed) {
+    return Response.json({ error: parsed.error }, { status: 400 });
+  }
+
+  const participation = await upsertProgramParticipation({
+    studentId: student.id,
+    organizationId: student.organizationId,
+    programSlug,
+    input: parsed.data,
+  });
+
+  if (!participation) {
+    return Response.json({ error: "Program was not found." }, { status: 404 });
+  }
+
+  return Response.json({
+    experience: serializeProgramParticipation(participation),
+  });
 }

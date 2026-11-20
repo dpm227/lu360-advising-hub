@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { AppShell } from "@/components/AppShell";
 import { ProgramCard } from "@/components/ProgramCard";
 import { ProfileEditButton } from "@/components/ProfileEditButton";
+import { ProfileExperiences } from "@/components/ProfileExperiences";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma-client";
@@ -48,6 +49,10 @@ export default async function ProfilePage() {
         statuses: true,
         savedPrograms: { include: { program: { select: { slug: true } } } },
         hiddenPrograms: { include: { program: { select: { slug: true } } } },
+        programParticipations: {
+          include: { program: { select: { slug: true, title: true } } },
+          orderBy: { updatedAt: "desc" },
+        },
       },
     }),
     getProgramRecords("profile page"),
@@ -107,10 +112,27 @@ export default async function ProfilePage() {
   const hiddenSlugs = new Set(
     student.hiddenPrograms.map((hidden) => hidden.program.slug),
   );
+  const experienceBySlug = Object.fromEntries(
+    student.programParticipations.map((participation) => [
+      participation.program.slug,
+      {
+        programSlug: participation.program.slug,
+        programTitle: participation.program.title,
+        status: participation.status,
+        term: participation.term,
+        reflection: participation.reflection,
+        liked: participation.liked,
+      },
+    ]),
+  );
   const savedPrograms = programs.filter((program) =>
     savedSlugs.has(program.slug),
   );
-  const matches = rankedPrograms(profile, programs)
+  const matches = rankedPrograms(
+    profile,
+    programs,
+    Object.values(experienceBySlug),
+  )
     .filter(({ program }) => !hiddenSlugs.has(program.slug))
     .slice(0, 2);
 
@@ -191,6 +213,23 @@ export default async function ProfilePage() {
               )}
             </div>
           </div>
+
+          <ProfileExperiences
+            initialExperiences={student.programParticipations.map(
+              (participation) => ({
+                programSlug: participation.program.slug,
+                programTitle: participation.program.title,
+                status: participation.status,
+                term: participation.term,
+                reflection: participation.reflection,
+                liked: participation.liked,
+              }),
+            )}
+            programs={programs.map((program) => ({
+              slug: program.slug,
+              title: program.title,
+            }))}
+          />
         </div>
 
         <aside className="profile-side">
@@ -208,6 +247,7 @@ export default async function ProfilePage() {
           ).map(({ program }) => (
             <ProgramCard
               compact
+              experience={experienceBySlug[program.slug]}
               initialSaved={savedSlugs.has(program.slug)}
               program={program}
               key={program.id}

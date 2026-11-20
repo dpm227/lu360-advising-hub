@@ -13,12 +13,20 @@ import { MarkdownMessage } from "@/components/MarkdownMessage";
 import { ProgramCard } from "@/components/ProgramCard";
 import { programs, type ProgramRecord } from "@/lib/program-data";
 import { MOBILE_QUERY, useMobileViewport } from "@/lib/use-mobile-viewport";
+import type { ChatProfileUpdate } from "@/lib/chat-profile-updates";
+import { programParticipationStatusLabels } from "@/lib/program-participation";
+
+type ChatProfileUpdateState = ChatProfileUpdate & {
+  state: "pending" | "saving" | "saved" | "dismissed" | "error";
+  error?: string;
+};
 
 type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
   programs?: ProgramRecord[];
+  profileUpdates?: ChatProfileUpdateState[];
 };
 
 export type ChatPageContext = {
@@ -160,6 +168,7 @@ export function AdvisorChat({
           response?: string;
           threadId?: string;
           recommendations?: Array<{ program: ProgramRecord; reason: string }>;
+          profileUpdates?: ChatProfileUpdate[];
         };
 
         if (!response.ok) {
@@ -178,6 +187,10 @@ export function AdvisorChat({
             role: "assistant",
             content: payload.response ?? fallbackReply(trimmed),
             programs: recommendedPrograms,
+            profileUpdates: payload.profileUpdates?.map((update) => ({
+              ...update,
+              state: "pending",
+            })),
           },
         ]);
       } catch {
@@ -199,6 +212,72 @@ export function AdvisorChat({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void sendMessage(input);
+  }
+
+  function updateProfileUpdateState(
+    messageId: string,
+    programSlug: string,
+    state: ChatProfileUpdateState["state"],
+    error?: string,
+  ) {
+    setMessages((current) =>
+      current.map((message) =>
+        message.id !== messageId
+          ? message
+          : {
+              ...message,
+              profileUpdates: message.profileUpdates?.map((update) =>
+                update.programSlug === programSlug
+                  ? { ...update, state, error }
+                  : update,
+              ),
+            },
+      ),
+    );
+  }
+
+  async function confirmProfileUpdate(
+    messageId: string,
+    update: ChatProfileUpdateState,
+  ) {
+    updateProfileUpdateState(messageId, update.programSlug, "saving");
+
+    try {
+      const response = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          experience: {
+            action: "upsert",
+            programSlug: update.programSlug,
+            status: update.status,
+            term: update.term,
+            reflection: update.reflection,
+            liked: update.liked,
+          },
+        }),
+      });
+      const payload = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        updateProfileUpdateState(
+          messageId,
+          update.programSlug,
+          "error",
+          payload.error ?? "Could not save this experience.",
+        );
+        return;
+      }
+
+      updateProfileUpdateState(messageId, update.programSlug, "saved");
+    } catch {
+      updateProfileUpdateState(
+        messageId,
+        update.programSlug,
+        "error",
+        "Could not save this experience. Please try again.",
+      );
+    }
   }
 
   useEffect(() => {
@@ -329,6 +408,66 @@ export function AdvisorChat({
                           }))
                         }
                       />
+                    ))}
+                  </div>
+                ) : null}
+                {message.profileUpdates?.length ? (
+                  <div className="chat-profile-updates">
+                    {message.profileUpdates.map((update) => (
+                      <div
+                        className="chat-profile-update"
+                        key={`${message.id}-${update.programSlug}`}
+                      >
+                        <div>
+                          <span className="eyebrow">Profile update</span>
+                          <strong>{update.programTitle}</strong>
+                          <p>
+                            {programParticipationStatusLabels[update.status]}
+                            {update.term ? ` · ${update.term}` : ""}
+                          </p>
+                        </div>
+                        {update.state === "saved" ? (
+                          <span className="profile-update-result saved">
+                            Saved to profile
+                          </span>
+                        ) : update.state === "dismissed" ? (
+                          <span className="profile-update-result">Not saved</span>
+                        ) : (
+                          <div className="chat-profile-update-actions">
+                            <button
+                              disabled={update.state === "saving"}
+                              onClick={() =>
+                                updateProfileUpdateState(
+                                  message.id,
+                                  update.programSlug,
+                                  "dismissed",
+                                )
+                              }
+                              type="button"
+                            >
+                              Dismiss
+                            </button>
+                            <button
+                              disabled={update.state === "saving"}
+                              onClick={() =>
+                                void confirmProfileUpdate(message.id, update)
+                              }
+                              type="button"
+                            >
+                              {update.state === "saving"
+                                ? "Saving..."
+                                : update.state === "error"
+                                  ? "Try again"
+                                  : "Confirm"}
+                            </button>
+                          </div>
+                        )}
+                        {update.error && update.state === "error" ? (
+                          <p className="chat-profile-update-error">
+                            {update.error}
+                          </p>
+                        ) : null}
+                      </div>
                     ))}
                   </div>
                 ) : null}

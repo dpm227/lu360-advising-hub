@@ -1,4 +1,9 @@
 import { programs, type ProgramRecord } from "./program-data";
+import type { StudentProgramExperience } from "./program-participation";
+import {
+  experienceSimilarity,
+  recommendationHistoryContext,
+} from "./recommendation-history";
 
 export type StudentProfile = {
   name: string;
@@ -71,7 +76,15 @@ export function evaluateProgramEligibility(
   };
 }
 
-export function scoreProgram(program: ProgramRecord, profile = demoProfile) {
+type ProgramScoringContext = {
+  positiveExperiencePrograms?: ProgramRecord[];
+};
+
+export function scoreProgram(
+  program: ProgramRecord,
+  profile = demoProfile,
+  context: ProgramScoringContext = {},
+) {
   let score = 0;
   const reasons: string[] = [];
   const eligibility = evaluateProgramEligibility(program, profile);
@@ -110,6 +123,18 @@ export function scoreProgram(program: ProgramRecord, profile = demoProfile) {
     reasons.push(`offers ${program.fundingTypes.join(" or ").toLowerCase()}`);
   }
 
+  const similarity = experienceSimilarity(
+    program,
+    context.positiveExperiencePrograms ?? [],
+  );
+
+  if (similarity.boost > 0) {
+    score += similarity.boost;
+    reasons.push(
+      `builds on your positive experience with ${similarity.programTitles.join(" and ")}`,
+    );
+  }
+
   return {
     program,
     score: Math.min(score, 100),
@@ -119,8 +144,18 @@ export function scoreProgram(program: ProgramRecord, profile = demoProfile) {
   };
 }
 
-export function rankedPrograms(profile = demoProfile, catalog = programs) {
+export function rankedPrograms(
+  profile = demoProfile,
+  catalog = programs,
+  experiences: StudentProgramExperience[] = [],
+) {
+  const { excludedSlugs, positiveExperiencePrograms } =
+    recommendationHistoryContext(catalog, experiences);
+
   return catalog
-    .map((program) => scoreProgram(program, profile))
+    .filter((program) => !excludedSlugs.has(program.slug))
+    .map((program) =>
+      scoreProgram(program, profile, { positiveExperiencePrograms }),
+    )
     .sort((first, second) => second.score - first.score);
 }
